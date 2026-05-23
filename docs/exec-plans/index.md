@@ -18,6 +18,7 @@ None.
 - [Implement Minimal Router DSL](completed/0003-implement-minimal-router-dsl.md)
 - [Implement URL-Encoded Form Support](completed/0004-implement-form-urlencoded.md)
 - [Implement Buffered Multipart Form-Data](completed/0005-implement-buffered-multipart-form-data.md)
+- [Add Multipart Part Consumers](completed/0006-add-multipart-part-consumers.md)
 
 ## When To Create A Plan
 

@@ -43,6 +43,8 @@ forms and multipart parts.
 - optional filename from `Content-Disposition`;
 - optional content type from `Content-Type`;
 - buffered body bytes as `Body.t`.
+- helpers for copying the buffered body to an application-owned Eio sink or
+  path.
 
 The first parser accepts canonical CRLF-delimited multipart bodies:
 
@@ -90,6 +92,9 @@ module Multipart : sig
     val filename : t -> string option
     val content_type : t -> string option
     val body : t -> Body.t
+    val copy_to_sink : t -> _ Eio.Flow.sink -> unit
+    val save_to_path :
+      ?append:bool -> create:Eio.Fs.create -> _ Eio.Path.t -> t -> unit
   end
 
   val decode : boundary:string -> string -> (t, error) result
@@ -132,6 +137,5 @@ Implementation should follow Explore -> Red -> Green -> Refactor:
 
 ## Open Questions
 
-- Should Phase 2 expose `copy_part_to_flow` before `Body.t` becomes streaming?
 - Should Phase 3 redesign `Body.t` as replayable-buffered-or-streaming, or add a
   separate request streaming API?

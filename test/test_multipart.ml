@@ -36,6 +36,14 @@ let expect_multipart = function
 
 let part_body part = Camelio.Body.to_string (Camelio.Multipart.Part.body part)
 
+let file_part () =
+  let multipart =
+    Camelio.Multipart.decode ~boundary multipart_body |> expect_multipart
+  in
+  match Camelio.Multipart.get "file" multipart with
+  | Some part -> part
+  | None -> fail "expected file part"
+
 let test_decode_parts () =
   let multipart =
     Camelio.Multipart.decode ~boundary multipart_body |> expect_multipart
@@ -57,6 +65,28 @@ let test_decode_parts () =
         (Camelio.Headers.get "x-trace" (Camelio.Multipart.Part.headers file));
       check string "file body" "hello file" (part_body file)
   | _ -> fail "unexpected part count"
+
+let test_part_copy_to_sink () =
+  let buffer = Buffer.create 16 in
+  Camelio.Multipart.Part.copy_to_sink (file_part ())
+    (Eio.Flow.buffer_sink buffer);
+  check string "sink body" "hello file" (Buffer.contents buffer)
+
+let test_part_save_to_path () =
+  Eio_main.run @@ fun env ->
+  let path =
+    Eio.Path.(
+      Eio.Stdenv.fs env
+      / ("/tmp/camelio-multipart-part-"
+        ^ string_of_int (Unix.getpid ())
+        ^ ".txt"))
+  in
+  Fun.protect
+    ~finally:(fun () -> try Eio.Path.unlink path with _ -> ())
+    (fun () ->
+      Camelio.Multipart.Part.save_to_path ~create:(`Or_truncate 0o600) path
+        (file_part ());
+      check string "saved body" "hello file" (Eio.Path.load path))
 
 let test_get_and_get_all_preserve_order () =
   let body =
@@ -152,6 +182,8 @@ let () =
       ( "multipart",
         [
           test_case "decode parts" `Quick test_decode_parts;
+          test_case "part copy_to_sink" `Quick test_part_copy_to_sink;
+          test_case "part save_to_path" `Quick test_part_save_to_path;
           test_case "get and get_all preserve order" `Quick
             test_get_and_get_all_preserve_order;
           test_case "of_request extracts quoted boundary" `Quick

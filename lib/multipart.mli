@@ -30,6 +30,14 @@ module Part : sig
 
   val body : t -> Body.t
   (** [body t] returns the buffered part body. *)
+
+  val copy_to_sink : t -> _ Eio.Flow.sink -> unit
+  (** [copy_to_sink t sink] writes the buffered part body to [sink]. *)
+
+  val save_to_path :
+    ?append:bool -> create:Eio.Fs.create -> _ Eio.Path.t -> t -> unit
+  (** [save_to_path ?append ~create path t] writes the buffered part body to
+      [path] using {!Eio.Path.save}. *)
 end
 
 val decode : boundary:string -> string -> (t, error) result

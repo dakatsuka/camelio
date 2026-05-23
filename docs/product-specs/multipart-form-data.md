@@ -71,6 +71,9 @@ module Multipart : sig
     val filename : t -> string option
     val content_type : t -> string option
     val body : t -> Body.t
+    val copy_to_sink : t -> _ Eio.Flow.sink -> unit
+    val save_to_path :
+      ?append:bool -> create:Eio.Fs.create -> _ Eio.Path.t -> t -> unit
   end
 
   val decode : boundary:string -> string -> (t, error) result
@@ -107,7 +110,8 @@ match Camelio.Multipart.of_request request with
 ## Phases
 
 - Phase 1: buffered multipart parser over existing `Body.t`.
-- Phase 2: part-level consumer helpers for copying file parts to Eio sinks.
+- Phase 2: part-level consumer helpers for copying file parts to Eio sinks and
+  paths.
 - Phase 3: streaming `Body.t` or protocol-level multipart parsing with Eio
   backpressure and resource scopes.
 
