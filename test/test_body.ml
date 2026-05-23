@@ -2,8 +2,11 @@ open Alcotest
 
 let test_body_values () =
   check string "empty" "" (Camelio.Body.to_string Camelio.Body.empty);
+  check bool "empty buffered" true (Camelio.Body.is_buffered Camelio.Body.empty);
   check string "string" "hello"
-    (Camelio.Body.to_string (Camelio.Body.string "hello"))
+    (Camelio.Body.to_string (Camelio.Body.string "hello"));
+  check bool "string buffered" true
+    (Camelio.Body.is_buffered (Camelio.Body.string "hello"))
 
 let test_to_string_limited () =
   check
@@ -31,7 +34,9 @@ let test_body_source () =
   check bool "buffered" true (Camelio.Body.is_buffered body);
   let read () = Camelio.Body.with_source body Eio.Flow.read_all in
   check string "source" "hello" (read ());
-  check string "source replayable" "hello" (read ())
+  check string "source replayable" "hello" (read ());
+  check string "to_string after source read" "hello"
+    (Camelio.Body.to_string body)
 
 let test_copy_to_sink () =
   let buffer = Buffer.create 16 in
