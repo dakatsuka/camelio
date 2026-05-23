@@ -2,12 +2,23 @@
 
 type t
 
+(** HTTP response status code classes. *)
+type class_ =
+  | Informational
+  | Successful
+  | Redirection
+  | Client_error
+  | Server_error
+
 val code : t -> int
 (** [code t] returns the three-digit status code. *)
 
 val reason : t -> string
 (** [reason t] returns the reason phrase. Unknown valid codes have an empty
     reason phrase. *)
+
+val class_ : t -> class_
+(** [class_ t] returns the status code class. *)
 
 val of_code : int -> t
 (** [of_code code] returns a status for [code].

@@ -35,6 +35,41 @@ let test_unknown_status () =
   check int "code" 599 (Camelio.Status.code status);
   check string "reason" "" (Camelio.Status.reason status)
 
+let test_status_class () =
+  let status_class =
+    testable
+      (fun formatter -> function
+        | Camelio.Status.Informational ->
+            Format.pp_print_string formatter "Informational"
+        | Camelio.Status.Successful ->
+            Format.pp_print_string formatter "Successful"
+        | Camelio.Status.Redirection ->
+            Format.pp_print_string formatter "Redirection"
+        | Camelio.Status.Client_error ->
+            Format.pp_print_string formatter "Client_error"
+        | Camelio.Status.Server_error ->
+            Format.pp_print_string formatter "Server_error")
+      ( = )
+  in
+  let cases =
+    [
+      (Camelio.Status.of_code 100, Camelio.Status.Informational);
+      (Camelio.Status.of_code 199, Camelio.Status.Informational);
+      (Camelio.Status.ok, Camelio.Status.Successful);
+      (Camelio.Status.of_code 299, Camelio.Status.Successful);
+      (Camelio.Status.moved_permanently, Camelio.Status.Redirection);
+      (Camelio.Status.of_code 399, Camelio.Status.Redirection);
+      (Camelio.Status.bad_request, Camelio.Status.Client_error);
+      (Camelio.Status.of_code 499, Camelio.Status.Client_error);
+      (Camelio.Status.internal_server_error, Camelio.Status.Server_error);
+      (Camelio.Status.of_code 599, Camelio.Status.Server_error);
+    ]
+  in
+  List.iter
+    (fun (status, expected) ->
+      check status_class "class" expected (Camelio.Status.class_ status))
+    cases
+
 let test_invalid_status () =
   check_raises "invalid low" (Invalid_argument "invalid HTTP status code")
     (fun () -> ignore (Camelio.Status.of_code 99 : Camelio.Status.t))
@@ -48,6 +83,7 @@ let () =
           test_case "standard status constants" `Quick
             test_standard_status_constants;
           test_case "unknown valid status" `Quick test_unknown_status;
+          test_case "status class" `Quick test_status_class;
           test_case "invalid status" `Quick test_invalid_status;
         ] );
     ]

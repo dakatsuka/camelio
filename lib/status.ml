@@ -1,7 +1,23 @@
 type t = { code : int; reason : string }
 
+type class_ =
+  | Informational
+  | Successful
+  | Redirection
+  | Client_error
+  | Server_error
+
 let code t = t.code
 let reason t = t.reason
+
+let class_ t =
+  match t.code / 100 with
+  | 1 -> Informational
+  | 2 -> Successful
+  | 3 -> Redirection
+  | 4 -> Client_error
+  | 5 -> Server_error
+  | _ -> assert false
 
 let reason_for_code = function
   | 100 -> "Continue"

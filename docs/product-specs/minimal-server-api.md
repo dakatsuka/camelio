@@ -98,7 +98,7 @@ HTTP method tokens are case-sensitive. Invalid method tokens, invalid status
 codes outside 100 through 599, and invalid `Request.make` targets raise
 `Invalid_argument`. Standard response statuses are available as named
 `Status.t` values, while `Status.of_code` remains available for custom valid
-codes.
+codes. Applications can inspect a status code's class with `Status.class_`.
 
 The first milestone supports plain HTTP server connections only. It must not
 promise HTTPS or TLS behavior, but protocol code should be designed around Eio

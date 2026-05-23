@@ -328,7 +328,8 @@ end
 `Invalid_argument` outside that range. Known status codes use their standard
 reason phrase. Unknown but valid codes use an empty reason phrase. Common
 standard status codes are exposed as named `Status.t` values so handlers do not
-need to construct them from integers.
+need to construct them from integers. `Status.class_` maps any valid status to
+its HTTP status code class.
 
 First milestone body contract:
 
