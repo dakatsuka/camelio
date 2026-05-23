@@ -13,19 +13,21 @@ runtimes such as `lwt` or `async`.
 
 ## Goals
 
-- Define a small server architecture that maps naturally to Eio fibers,
+- Define a small server-first architecture that maps naturally to Eio fibers,
   switches, flows, and cancellation.
 - Keep parsing, request handling, response writing, and connection lifecycle
   responsibilities separate.
 - Make protocol behavior testable without opening real network sockets where
   possible.
 - Leave room for HTTP/1.1 first, with later extension points for TLS,
-  observability, benchmarks, and additional protocol features.
+  observability, benchmarks, client support, and additional protocol features.
 
 ## Non-Goals
 
 - Supporting `cohttp`, `lwt`, or `async` compatibility layers.
 - Implementing HTTP/2 or HTTP/3 in the initial design.
+- Implementing an HTTP client in the first server milestone.
+- Implementing TLS in the first server milestone.
 - Providing a full web framework, router, template system, or middleware stack
   before the core server behavior is specified.
 
@@ -33,6 +35,7 @@ runtimes such as `lwt` or `async`.
 
 - `Camelio`: public entry point.
 - `Camelio.Server`: accept loop, connection lifecycle, handler invocation.
+- `Camelio.Client`: future HTTP client API built on shared HTTP types.
 - `Camelio.Handler`: low-level request-to-response handler contract.
 - `Camelio.Middleware`: handler-to-handler transformations.
 - `Camelio.Http`: request, response, method, header, status, and body types.
@@ -43,6 +46,11 @@ runtimes such as `lwt` or `async`.
 
 These names are provisional until the first implementation plan confirms package
 layout and build tooling.
+
+`Camelio.Http` should contain protocol value types that are useful to both the
+server and the future client. Server-specific lifecycle concerns belong in
+`Camelio.Server`; future client connection pooling, redirect policy, and TLS
+configuration should belong in `Camelio.Client`.
 
 ## Concurrency Model
 
@@ -67,3 +75,5 @@ The initial implementation plan should introduce:
 - Should the first parser be handwritten or built with a parser combinator?
 - Should request and response body abstractions be eager, streaming, or hybrid in
   the first implementation milestone?
+- What transport abstraction should a future HTTP client use for plain TCP and
+  TLS without forcing TLS into the first server milestone?

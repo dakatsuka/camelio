@@ -25,12 +25,14 @@ concepts in the core handler contract.
 - Add middleware from the start as a first-class transformation over handlers.
 - Leave room for a future Router DSL that compiles down to the same handler
   contract.
+- Keep HTTP value types reusable by a future HTTP client.
 - Keep Eio capabilities explicit at server boundaries and ordinary direct-style
   OCaml inside handlers.
 
 ## Non-Goals
 
 - Providing a routing DSL in the first server milestone.
+- Providing an HTTP client in the first server milestone.
 - Providing a web framework, controller layer, template layer, or application
   container.
 - Copying Go's mutable `ResponseWriter` model as the primary API.
@@ -43,6 +45,12 @@ The first public server API should revolve around three concepts:
 - `Request.t`: an immutable request value plus an explicit body abstraction.
 - `Response.t`: a response value that describes status, headers, and body.
 - `Handler.t`: a function from request to response.
+
+`Request.t`, `Response.t`, `Method.t`, `Headers.t`, `Status.t`, and `Body.t`
+belong to the shared HTTP layer, not to the server layer. The first milestone
+uses them from the server only, but their naming and contracts should avoid
+server-only assumptions so a future `Client` module can reuse them for reverse
+proxy and outbound HTTP use cases.
 
 Middleware should be a function from handler to handler:
 
@@ -121,6 +129,31 @@ end
 Because `Router.to_handler` returns `Handler.t`, routing remains an optional
 layer rather than a server dependency.
 
+## Client And TLS Compatibility
+
+The first milestone should not include an HTTP client. However, Camelio should
+expect to add one because reverse proxy and service-to-service use cases need
+outbound HTTP. The future client should reuse the shared HTTP value types:
+
+- `Request.t` for outbound request construction;
+- `Response.t` for inbound client responses;
+- `Method.t`, `Headers.t`, `Status.t`, and `Body.t` for protocol values.
+
+Client-only concerns should not leak into the server API. Future client
+configuration should own concerns such as target URI parsing, connection reuse,
+redirect behavior, proxy behavior, and TLS verification policy.
+
+TLS is not part of the first server milestone. The first server implementation
+may listen on plain TCP only. The design should still avoid assuming that every
+HTTP connection is backed directly by a raw socket. Protocol read/write code
+should operate on Eio flows so a future TLS transport can wrap the underlying
+connection before HTTP parsing and encoding.
+
+The future client will likely need TLS earlier than the server because many
+outbound URLs use `https`. That requirement should be handled in a separate
+client/TLS design and ADR before implementation. Until then, no public API
+should promise HTTPS support.
+
 ## Middleware Semantics
 
 Middleware order should be explicit and documented. `Middleware.apply [a; b] h`
@@ -149,8 +182,8 @@ modules rather than middleware.
 `Request.t`, `Response.t`, and body types should be abstract in public
 interfaces. The first implementation should expose constructors and accessors
 rather than public record fields or public variant representation. This keeps
-room for future streaming support without forcing users to pattern match on
-internal representation.
+room for future streaming support and client reuse without forcing users to
+pattern match on internal representation.
 
 First milestone request contract:
 
@@ -220,6 +253,10 @@ with `"/"`. `Request.path` returns the origin-form path without the query
 string; for example, `"/items?a=1"` becomes `"/items"`. Unsupported
 request-target forms are rejected by the HTTP/1 parser before a `Request.t`
 reaches a handler.
+
+This first milestone target contract is server-oriented. A future client design
+may add constructors for absolute-form request targets or URI-based outbound
+requests without changing the server handler contract.
 
 First milestone response contract:
 
@@ -364,6 +401,8 @@ above.
 - Router-first API: convenient for applications, but it would entangle path
   matching with the server lifecycle before the low-level handler contract is
   stable.
+- Client-first API: useful for reverse proxy work, but it would force target URI,
+  connection pooling, and TLS decisions before the minimal server exists.
 - Middleware as server hooks: less composable and harder to test than
   `Handler.t -> Handler.t`.
 
@@ -380,6 +419,11 @@ Final context-free re-review reported no blocking findings and confirmed that
 the design and product spec are consistent enough to proceed toward an
 implementation plan.
 
+Additional context-free review of the future HTTP client and TLS compatibility
+notes reported no blocking findings. The review confirmed that the initial
+milestone remains server-only, shared HTTP value types are positioned for future
+client reuse, TLS is deferred, and no public HTTPS support is promised.
+
 ## Validation
 
 The implementation plan should validate this design with:
@@ -393,6 +437,9 @@ The implementation plan should validate this design with:
 
 ## Open Questions
 
+- Which shared HTTP type contracts will need widening when the HTTP client is
+  designed?
+- What transport abstraction should future TLS support use?
 - Should `Request.t` expose the body as a pull-based stream, an eager value, or a
   hybrid body abstraction after the first buffered-body milestone?
 - Should `Response.t` add streaming after the first implementation milestone?

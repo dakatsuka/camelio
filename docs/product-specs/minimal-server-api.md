@@ -14,12 +14,15 @@ Eio-native HTTP server before higher-level routing DSLs exist.
 - Users can provide a plain OCaml handler function for HTTP requests.
 - Users can wrap handlers with middleware for cross-cutting behavior.
 - The first API remains compatible with a future routing DSL.
+- Shared HTTP value types remain compatible with a future HTTP client.
 - Handler tests can run without opening a network socket.
 
 ## Non-Goals
 
 - Route declaration DSLs such as `get "/path" handler`.
 - Regex path matching.
+- HTTP client APIs.
+- TLS support.
 - Web framework features such as controllers, templates, sessions, or dependency
   injection.
 
@@ -38,6 +41,8 @@ Eio-native HTTP server before higher-level routing DSLs exist.
 - The API must not expose `Lwt.t`, `Async.Deferred.t`, `cohttp` types, or
   callback-based scheduling.
 - A future Router DSL must be able to compile to the same handler contract.
+- A future HTTP client must be able to reuse shared HTTP types for methods,
+  headers, status, request bodies, and response bodies.
 - First-milestone request bodies are buffered and replayable. Streaming bodies
   are deferred behind abstract body types.
 - Uncaught non-cancellation handler exceptions before response writing produce a
@@ -77,6 +82,11 @@ HTTP method tokens are case-sensitive. Invalid method tokens, invalid status
 codes outside 100 through 599, and invalid `Request.make` targets raise
 `Invalid_argument`.
 
+The first milestone supports plain HTTP server connections only. It must not
+promise HTTPS or TLS behavior, but protocol code should be designed around Eio
+flows so future TLS transport support can be introduced without changing handler
+contracts.
+
 ## Examples
 
 Minimal handler:
@@ -106,8 +116,24 @@ let app =
 
 `Router` is illustrative only and is not part of the first server milestone.
 
+Future client compatibility:
+
+```ocaml
+(* Illustrative only; Client is not part of the first server milestone. *)
+let upstream_request =
+  Request.make
+    ~meth:Method.GET
+    ~target:"/"
+    ~headers:Headers.empty
+    ~body:Body.empty
+```
+
 ## Open Questions
 
 - What default maximum request body size should the server enforce?
+- Which request-target constructors should be added when HTTP Client support is
+  designed?
+- Which TLS library or abstraction should be used by future client/server
+  transport support?
 - Should middleware order ever support alternate composition helpers beyond
   explicit list order?
