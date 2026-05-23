@@ -42,6 +42,7 @@ Start with the relevant index before making changes:
   during operations and incident analysis.
 - Write repository documentation, source comments, commit messages, and public
   technical artifacts in English.
+- Write commit messages according to Conventional Commits.
 
 ## Collaboration Rules
 
@@ -68,6 +69,8 @@ Start with the relevant index before making changes:
 ## Quality Bar
 
 - Use an Explore -> Red -> Green -> Refactor cycle for implementation work.
+- Create unit test files per module. For OCaml, use one unit test file per
+  source file under test.
 - Use available static analysis and formatting tools for the language and fix
   their findings. Do not use prompts or manual AI edits as a substitute for
   tool-driven formatting or static checks.

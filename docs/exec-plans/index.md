@@ -47,7 +47,9 @@ before internal implementation.
 - [ ] Explore: inspect existing code, specs, design docs, and tests.
 - [ ] Design review: request context-free third-party review and incorporate
       feedback.
-- [ ] Red: write failing behavior-focused tests.
+- [ ] Red: write failing behavior-focused tests, with unit test files organized
+      per module. For OCaml, create one unit test file per source file under
+      test.
 - [ ] Green: implement the smallest change that satisfies the tests.
 - [ ] Refactor: improve structure while keeping tests green.
 - [ ] Static checks: run formatters and static analysis tools, then fix findings.
@@ -66,4 +68,8 @@ manual checks.
 ## Completion Notes
 
 Summarize what changed and any follow-up work.
+
+## Commit
+
+Record the Conventional Commits-compliant commit message used for the work.
 ```

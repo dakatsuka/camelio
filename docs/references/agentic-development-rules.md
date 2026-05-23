@@ -27,3 +27,6 @@ implementation, review, tests, and static analysis.
 - Run available static analysis and formatting tools, then fix their findings.
   Use tools for mechanically checkable formatting instead of relying on prompts
   or manual AI edits.
+- Write commit messages according to Conventional Commits.
+- Create unit test files per module. For OCaml, use one unit test file per
+  source file under test.
