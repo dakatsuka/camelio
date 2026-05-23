@@ -6,6 +6,7 @@ have to rediscover from commit history.
 ## Records
 
 - [0001: Use OCaml 5.4 and Eio without cohttp, lwt, or async](0001-use-ocaml-54-and-eio.md)
+- [0002: Introduce streaming bodies with buffered compatibility](0002-introduce-streaming-bodies-with-buffered-compatibility.md)
 
 ## When To Write An ADR
 
