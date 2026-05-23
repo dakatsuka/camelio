@@ -6,29 +6,27 @@ Draft
 
 ## Context
 
-URL-encoded forms are small key-value bodies that fit Camelio's current
-buffered `Body.t`. Multipart form-data can contain files and should eventually
-stream through Eio flows. Camelio should therefore add multipart support in
-phases instead of pretending file uploads are just another string multimap.
+URL-encoded forms are small key-value bodies that fit Camelio's buffered
+`Body.t`. Multipart form-data can contain files, so Camelio added multipart
+support in phases instead of pretending file uploads are just another string
+multimap.
 
-Phase 1 uses the current buffered body model to establish public concepts:
-multipart values, parts, structured errors, content-type handling, and ordered
-field lookup. Later phases can replace the internal part body representation
-with streaming without changing the high-level separation between URL-encoded
-forms and multipart parts.
+Phase 1 used the buffered body model to establish public concepts: multipart
+values, parts, structured errors, content-type handling, and ordered field
+lookup. Later phases added bounded parsing for streaming request bodies and a
+true streaming iterator for callback-scoped part sources.
 
 ## Goals
 
 - Add `Camelio.Multipart` as a separate optional module.
-- Keep `Request.t`, `Body.t`, and `Server` unchanged in Phase 1.
+- Keep URL-encoded forms and multipart parts as separate abstractions.
 - Preserve part headers and body bytes.
 - Expose field lookup by `Content-Disposition` name.
 - Use result errors for malformed client input.
-- Document the path toward Eio streaming support.
+- Support both buffered multipart parsing and Eio streaming upload handling.
 
 ## Non-Goals
 
-- Streaming parser implementation in Phase 1.
 - Automatic tempfile management.
 - Filename sanitization or upload storage policy.
 - Full MIME feature coverage.
@@ -36,13 +34,14 @@ forms and multipart parts.
 
 ## Proposed Design
 
-`Multipart.t` is an abstract ordered part list. Each `Part.t` contains:
+`Multipart.t` is an abstract ordered part list for buffered multipart data.
+Each `Part.t` contains:
 
 - parsed part headers;
 - optional field name from `Content-Disposition`;
 - optional filename from `Content-Disposition`;
 - optional content type from `Content-Type`;
-- buffered body bytes as `Body.t`.
+- buffered body bytes as `Body.t`;
 - helpers for copying the buffered body to an application-owned Eio sink or
   path.
 
@@ -154,9 +153,9 @@ All public functions and types in `multipart.mli` must have block comments.
 
 - Return `Form.t`: rejected because multipart parts include headers, filenames,
   content types, and future streaming bodies.
-- Implement streaming first: deferred because the current protocol layer
-  buffers request bodies and a streaming body redesign deserves its own design
-  and likely ADR.
+- Implement streaming first: rejected for the first multipart milestone because
+  Camelio needed the buffered request-body contract, part metadata model, and
+  structured multipart errors before adding live request streaming.
 - Raise exceptions for malformed multipart input: rejected because malformed
   upload bodies are ordinary client input.
 
@@ -179,5 +178,7 @@ Implementation should follow Explore -> Red -> Green -> Refactor:
 
 ## Open Questions
 
-- Should Phase 3 redesign `Body.t` as replayable-buffered-or-streaming, or add a
-  separate request streaming API?
+- Should future helpers add filename sanitization, tempfile management, or other
+  storage policy, or leave those entirely to applications?
+- Should multipart streaming add route-level body mode integration once server
+  routing policy exists?

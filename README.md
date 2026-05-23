@@ -13,10 +13,117 @@ Camelio is in early design and implementation. The first implementation
 milestone is a minimal HTTP/1.1 server over plain TCP with:
 
 - `Connection: close` behavior;
-- buffered and replayable request bodies;
+- buffered and replayable request bodies by default;
+- opt-in streaming request bodies;
 - a low-level `Handler.t = Request.t -> Response.t` contract;
 - middleware as `Handler.t -> Handler.t`;
-- no Router, HTTP Client, TLS, HTTP/2, or HTTP/3 public APIs yet.
+- an optional method-and-path router;
+- buffered and streaming `multipart/form-data` helpers;
+- no HTTP Client, TLS, HTTP/2, or HTTP/3 public APIs yet.
+
+## Usage
+
+Add `camelio`, `eio`, and `eio_main` to your executable libraries:
+
+```lisp
+(executable
+ (name app)
+ (libraries camelio eio eio_main))
+```
+
+Run a minimal server:
+
+```ocaml
+let handler request =
+  match Camelio.Request.(meth request, path request) with
+  | Camelio.Method.GET, "/" -> Camelio.Response.text "hello from camelio\n"
+  | _ -> Camelio.Response.text ~status:Camelio.Status.not_found "not found\n"
+
+let () =
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+  let net = Eio.Stdenv.net env in
+  let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 8080) in
+  let server = Camelio.Server.create ~handler () in
+  Camelio.Server.run ~sw ~net ~addr server
+```
+
+Use the router when you want path parameters and first-match routing:
+
+```ocaml
+let router =
+  Camelio.Router.empty
+  |> Camelio.Router.get "/" (fun _params _request ->
+         Camelio.Response.text "hello\n")
+  |> Camelio.Router.get "/users/:id" (fun params _request ->
+         match Camelio.Router.Params.get "id" params with
+         | None -> Camelio.Response.text ~status:Camelio.Status.not_found "not found\n"
+         | Some id -> Camelio.Response.text (Printf.sprintf "user %s\n" id))
+
+let server =
+  Camelio.Server.create ~handler:(Camelio.Router.to_handler router) ()
+```
+
+Parse buffered multipart forms for small uploads:
+
+```ocaml
+let upload_buffered request =
+  match Camelio.Multipart.of_request request with
+  | Error error ->
+      Camelio.Response.text ~status:Camelio.Status.bad_request
+        (Format.asprintf "%a\n" Camelio.Multipart.pp_error error)
+  | Ok multipart -> (
+      match Camelio.Multipart.get "avatar" multipart with
+      | None ->
+          Camelio.Response.text ~status:Camelio.Status.bad_request
+            "missing avatar\n"
+      | Some part ->
+          let bytes =
+            Camelio.Multipart.Part.body part |> Camelio.Body.to_string
+          in
+          Camelio.Response.text
+            (Printf.sprintf "received %d bytes\n" (String.length bytes)))
+```
+
+Use streaming request bodies for large multipart uploads. Streaming part sources
+are valid only during the `on_part` callback.
+
+```ocaml
+let count_source source =
+  let scratch = Cstruct.create 8192 in
+  let rec loop total =
+    match Eio.Flow.single_read source scratch with
+    | exception End_of_file -> total
+    | read -> loop (total + read)
+  in
+  loop 0
+
+let upload_streaming request =
+  match
+    Camelio.Multipart.Streaming.iter_request request
+      ~on_part:(fun part source ->
+        match Camelio.Multipart.Streaming.filename part with
+        | None -> Eio.Flow.copy source (Eio.Flow.buffer_sink (Buffer.create 0))
+        | Some filename ->
+            let bytes = count_source source in
+            Printf.printf "received %s: %d bytes\n%!" filename bytes)
+  with
+  | Ok () -> Camelio.Response.text "uploaded\n"
+  | Error error ->
+      Camelio.Response.text ~status:Camelio.Status.bad_request
+        (Format.asprintf "%a\n" Camelio.Multipart.pp_error error)
+
+let server =
+  Camelio.Server.create ~request_body_mode:Camelio.Server.Streaming
+    ~handler:upload_streaming ()
+```
+
+The repository includes runnable examples:
+
+```sh
+dune exec camelio-hello
+dune exec camelio-upload-streaming
+```
 
 ## Development
 

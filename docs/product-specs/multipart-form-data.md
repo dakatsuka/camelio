@@ -18,7 +18,7 @@ parts.
 - Preserve part headers, field names, filenames, content types, and body bytes.
 - Return structured parse errors instead of raising for malformed user input.
 - Keep URL-encoded forms and multipart forms as separate modules.
-- Leave future streaming upload support as an explicit later phase.
+- Support streaming upload handling through an explicit streaming API.
 
 ## Non-Goals
 
