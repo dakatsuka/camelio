@@ -48,6 +48,21 @@ let () =
   Camelio.Server.run ~sw ~net ~addr server
 ```
 
+For small handlers, you can also split `Request.path` yourself. Router patterns
+such as `"/users/:id"` are only interpreted by `Camelio.Router`; direct pattern
+matching sees paths as ordinary strings.
+
+```ocaml
+let handler request =
+  match Camelio.Request.(meth request, path request |> String.split_on_char '/') with
+  | Camelio.Method.GET, [ ""; "users"; id ] ->
+      Camelio.Response.text (Printf.sprintf "user %s\n" id)
+  | Camelio.Method.GET, [ ""; "health" ] ->
+      Camelio.Response.text "ok\n"
+  | _ ->
+      Camelio.Response.text ~status:Camelio.Status.not_found "not found\n"
+```
+
 Use the router when you want path parameters and first-match routing:
 
 ```ocaml
