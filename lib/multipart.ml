@@ -73,6 +73,77 @@ module Part = struct
     Body.save_to_path ?append ~create path t.body
 end
 
+module Tempfile = struct
+  type 'a t = {
+    path : 'a Eio.Path.t;
+    original_filename : string option;
+    display_filename : string option;
+    size : int;
+  }
+
+  let path t = t.path
+  let original_filename t = t.original_filename
+  let display_filename t = t.display_filename
+  let size t = t.size
+
+  let hex_char nibble =
+    if nibble < 10 then Char.chr (Char.code '0' + nibble)
+    else Char.chr (Char.code 'a' + nibble - 10)
+
+  let hex bytes =
+    let output = Bytes.create (Cstruct.length bytes * 2) in
+    for index = 0 to Cstruct.length bytes - 1 do
+      let byte = Char.code (Cstruct.get_char bytes index) in
+      Bytes.set output (index * 2) (hex_char (byte lsr 4));
+      Bytes.set output ((index * 2) + 1) (hex_char (byte land 0x0f))
+    done;
+    Bytes.unsafe_to_string output
+
+  let generated_name random =
+    let bytes = Cstruct.create 16 in
+    Eio.Flow.read_exact random bytes;
+    "camelio-upload-" ^ hex bytes ^ ".tmp"
+
+  let copy_counting source sink =
+    let scratch = Cstruct.create 8192 in
+    let rec loop total =
+      match Eio.Flow.single_read source scratch with
+      | exception End_of_file -> total
+      | read ->
+          Eio.Flow.write sink [ Cstruct.sub scratch 0 read ];
+          loop (total + read)
+    in
+    loop 0
+
+  let with_generated_file ~dir ~random source =
+    let rec attempt remaining =
+      if remaining = 0 then failwith "could not create unique tempfile";
+      let path = Eio.Path.(dir / generated_name random) in
+      let opened = ref false in
+      match
+        Eio.Path.with_open_out ~create:(`Exclusive 0o600) path (fun sink ->
+            opened := true;
+            copy_counting source sink)
+      with
+      | size -> (path, size)
+      | exception Eio.Io (Eio.Fs.E (Eio.Fs.Already_exists _), _) ->
+          attempt (remaining - 1)
+      | exception ex ->
+          (if !opened then try Eio.Path.unlink path with _ -> ());
+          raise ex
+    in
+    attempt 32
+
+  let save_source ~dir ~random ?original_filename source =
+    let path, size = with_generated_file ~dir ~random source in
+    let display_filename = Option.map Filename.sanitize original_filename in
+    { path; original_filename; display_filename; size }
+
+  let save_part ~dir ~random part =
+    Body.with_source (Part.body part) @@ fun source ->
+    save_source ~dir ~random ?original_filename:(Part.filename part) source
+end
+
 exception Streaming_malformed_body
 exception Streaming_unexpected_end_of_body
 

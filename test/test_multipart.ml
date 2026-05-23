@@ -39,6 +39,41 @@ let request_with_body ?content_type body =
     ~body
 
 let multipart_error = of_pp Camelio.Multipart.pp_error
+let random_source byte = Eio.Flow.string_source (String.make 16 (Char.chr byte))
+let random_sources bytes = Eio.Flow.string_source (String.concat "" bytes)
+
+let with_temp_dir name fn =
+  Eio_main.run @@ fun env ->
+  let dir =
+    Eio.Path.(
+      Eio.Stdenv.fs env
+      / ("/tmp/camelio-multipart-" ^ string_of_int (Unix.getpid ()) ^ "-" ^ name))
+  in
+  (try Eio.Path.rmtree ~missing_ok:true dir with _ -> ());
+  Fun.protect
+    ~finally:(fun () -> try Eio.Path.rmtree ~missing_ok:true dir with _ -> ())
+    (fun () ->
+      Eio.Path.mkdir ~perm:0o700 dir;
+      fn dir)
+
+module Failing_source = struct
+  type t = { mutable read_count : int }
+
+  let read_methods = []
+
+  let single_read t buffer =
+    match t.read_count with
+    | 0 ->
+        t.read_count <- 1;
+        Cstruct.blit_from_string "partial" 0 buffer 0 7;
+        7
+    | _ -> failwith "copy failed"
+end
+
+let failing_source () =
+  Eio.Resource.T
+    ( { Failing_source.read_count = 0 },
+      Eio.Flow.Pi.source (module Failing_source) )
 
 let expect_multipart = function
   | Ok multipart -> multipart
@@ -63,6 +98,56 @@ let test_filename_sanitize () =
   check_raises "invalid max length" (Invalid_argument "non-positive max_length")
     (fun () -> ignore (sanitize ~max_length:0 "avatar.jpg" : string))
 
+let test_tempfile_save_source () =
+  with_temp_dir "save-source" @@ fun dir ->
+  let saved =
+    Camelio.Multipart.Tempfile.save_source ~dir ~random:(random_source 0)
+      ~original_filename:"foo/bar.jpg"
+      (Eio.Flow.string_source "hello")
+  in
+  let expected_name = "camelio-upload-00000000000000000000000000000000.tmp" in
+  check (option string) "basename" (Some expected_name)
+    (Eio.Path.split (Camelio.Multipart.Tempfile.path saved) |> Option.map snd);
+  check (option string) "original" (Some "foo/bar.jpg")
+    (Camelio.Multipart.Tempfile.original_filename saved);
+  check (option string) "display" (Some "foo-bar.jpg")
+    (Camelio.Multipart.Tempfile.display_filename saved);
+  check int "size" 5 (Camelio.Multipart.Tempfile.size saved);
+  check string "body" "hello"
+    (Eio.Path.load (Camelio.Multipart.Tempfile.path saved));
+  check (list string) "entries" [ expected_name ] (Eio.Path.read_dir dir)
+
+let test_tempfile_save_source_retries_on_collision () =
+  with_temp_dir "collision" @@ fun dir ->
+  let first_name = "camelio-upload-00000000000000000000000000000000.tmp" in
+  let second_name = "camelio-upload-02020202020202020202020202020202.tmp" in
+  Eio.Path.save ~create:(`Exclusive 0o600)
+    Eio.Path.(dir / first_name)
+    "existing";
+  let saved =
+    Camelio.Multipart.Tempfile.save_source ~dir
+      ~random:
+        (random_sources
+           [ String.make 16 (Char.chr 0); String.make 16 (Char.chr 2) ])
+      (Eio.Flow.string_source "hello")
+  in
+  check (option string) "basename" (Some second_name)
+    (Eio.Path.split (Camelio.Multipart.Tempfile.path saved) |> Option.map snd);
+  check string "body" "hello"
+    (Eio.Path.load (Camelio.Multipart.Tempfile.path saved));
+  check (list string) "entries"
+    [ first_name; second_name ]
+    (Eio.Path.read_dir dir)
+
+let test_tempfile_save_source_cleans_up_on_failure () =
+  with_temp_dir "cleanup" @@ fun dir ->
+  check_raises "copy failure" (Failure "copy failed") (fun () ->
+      ignore
+        (Camelio.Multipart.Tempfile.save_source ~dir ~random:(random_source 1)
+           (failing_source ())
+          : _ Camelio.Multipart.Tempfile.t));
+  check (list string) "entries" [] (Eio.Path.read_dir dir)
+
 let file_part () =
   let multipart =
     Camelio.Multipart.decode ~boundary multipart_body |> expect_multipart
@@ -70,6 +155,20 @@ let file_part () =
   match Camelio.Multipart.get "file" multipart with
   | Some part -> part
   | None -> fail "expected file part"
+
+let test_tempfile_save_part () =
+  with_temp_dir "save-part" @@ fun dir ->
+  let saved =
+    Camelio.Multipart.Tempfile.save_part ~dir ~random:(random_source 255)
+      (file_part ())
+  in
+  check (option string) "original" (Some "hello.txt")
+    (Camelio.Multipart.Tempfile.original_filename saved);
+  check (option string) "display" (Some "hello.txt")
+    (Camelio.Multipart.Tempfile.display_filename saved);
+  check int "size" 10 (Camelio.Multipart.Tempfile.size saved);
+  check string "body" "hello file"
+    (Eio.Path.load (Camelio.Multipart.Tempfile.path saved))
 
 let test_decode_parts () =
   let multipart =
@@ -538,6 +637,12 @@ let () =
       ( "multipart",
         [
           test_case "filename sanitize" `Quick test_filename_sanitize;
+          test_case "tempfile save source" `Quick test_tempfile_save_source;
+          test_case "tempfile retries on collision" `Quick
+            test_tempfile_save_source_retries_on_collision;
+          test_case "tempfile save part" `Quick test_tempfile_save_part;
+          test_case "tempfile cleanup on failure" `Quick
+            test_tempfile_save_source_cleans_up_on_failure;
           test_case "decode parts" `Quick test_decode_parts;
           test_case "part copy_to_sink" `Quick test_part_copy_to_sink;
           test_case "part save_to_path" `Quick test_part_save_to_path;

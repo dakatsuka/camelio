@@ -30,6 +30,7 @@ None.
 - [Add Bounded Multipart Request Read](completed/0015-add-bounded-multipart-request-read.md)
 - [Add Streaming Multipart Iterator](completed/0016-add-streaming-multipart-iterator.md)
 - [Add Streaming Multipart Integration](completed/0017-add-streaming-multipart-integration.md)
+- [Add Multipart Tempfile Helper](completed/0018-add-multipart-tempfile-helper.md)
 
 ## When To Create A Plan
 

@@ -27,7 +27,6 @@ true streaming iterator for callback-scoped part sources.
 
 ## Non-Goals
 
-- Automatic tempfile management.
 - Automatic upload storage policy.
 - Full MIME feature coverage.
 - Nested multipart parsing.
@@ -101,6 +100,13 @@ characters, including path separators, with `-`; collapses repeated separators
 and periods; removes leading periods and separators; truncates to `max_length`
 bytes; and falls back to `upload` when no safe characters remain.
 
+`Multipart.Tempfile.save_source` writes a source to a generated temporary file
+under an application-provided Eio directory capability. The helper also backs
+`Multipart.Tempfile.save_part` for buffered parts. The storage filename is
+generated from an explicit random source, never from the client supplied
+filename. Files are created with `` `Exclusive 0o600 ``. Successful files remain
+application-owned; failed copies remove partial files on a best-effort basis.
+
 ## Contracts
 
 The first implementation should add:
@@ -132,6 +138,28 @@ module Multipart : sig
     val copy_to_sink : t -> _ Eio.Flow.sink -> unit
     val save_to_path :
       ?append:bool -> create:Eio.Fs.create -> _ Eio.Path.t -> t -> unit
+  end
+
+  module Tempfile : sig
+    type 'a t constraint 'a = [> Eio.Fs.dir_ty ]
+
+    val path : 'a t -> 'a Eio.Path.t
+    val original_filename : 'a t -> string option
+    val display_filename : 'a t -> string option
+    val size : 'a t -> int
+
+    val save_source :
+      dir:'a Eio.Path.t ->
+      random:Eio.Flow.source_ty Eio.Resource.t ->
+      ?original_filename:string ->
+      Eio.Flow.source_ty Eio.Resource.t ->
+      'a t
+
+    val save_part :
+      dir:'a Eio.Path.t ->
+      random:Eio.Flow.source_ty Eio.Resource.t ->
+      Part.t ->
+      'a t
   end
 
   module Streaming : sig
@@ -190,7 +218,7 @@ Implementation should follow Explore -> Red -> Green -> Refactor:
 
 ## Open Questions
 
-- Should future helpers add filename sanitization, tempfile management, or other
-  storage policy, or leave those entirely to applications?
+- Should future helpers add a higher-level upload storage policy, or leave that
+  entirely to applications?
 - Should multipart streaming add route-level body mode integration once server
   routing policy exists?

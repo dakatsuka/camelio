@@ -86,28 +86,24 @@ let upload_buffered request =
 ```
 
 Use streaming request bodies for large multipart uploads. Streaming part sources
-are valid only during the `on_part` callback.
+are valid only during the `on_part` callback. When saving uploads, pass an
+application-owned temporary directory and `Eio.Stdenv.secure_random env` to the
+tempfile helper.
 
 ```ocaml
-let count_source source =
-  let scratch = Cstruct.create 8192 in
-  let rec loop total =
-    match Eio.Flow.single_read source scratch with
-    | exception End_of_file -> total
-    | read -> loop (total + read)
-  in
-  loop 0
-
-let upload_streaming request =
+let upload_streaming ~upload_dir ~random request =
   match
     Camelio.Multipart.Streaming.iter_request request
       ~on_part:(fun part source ->
         match Camelio.Multipart.Streaming.filename part with
         | None -> Eio.Flow.copy source (Eio.Flow.buffer_sink (Buffer.create 0))
         | Some filename ->
-            let filename = Camelio.Multipart.Filename.sanitize filename in
-            let bytes = count_source source in
-            Printf.printf "received %s: %d bytes\n%!" filename bytes)
+            let saved =
+              Camelio.Multipart.Tempfile.save_source ~dir:upload_dir ~random
+                ~original_filename:filename source
+            in
+            Printf.printf "received %d bytes\n%!"
+              (Camelio.Multipart.Tempfile.size saved))
   with
   | Ok () -> Camelio.Response.text "uploaded\n"
   | Error error ->
@@ -116,7 +112,7 @@ let upload_streaming request =
 
 let server =
   Camelio.Server.create ~request_body_mode:Camelio.Server.Streaming
-    ~handler:upload_streaming ()
+    ~handler:(upload_streaming ~upload_dir ~random) ()
 ```
 
 The repository includes runnable examples:

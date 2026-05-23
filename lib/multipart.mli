@@ -60,6 +60,52 @@ module Part : sig
       [path] using {!Eio.Path.save}. *)
 end
 
+module Tempfile : sig
+  type 'a t constraint 'a = [> Eio.Fs.dir_ty ]
+  (** A generated temporary upload file. *)
+
+  val path : 'a t -> 'a Eio.Path.t
+  (** [path t] returns the generated storage path. *)
+
+  val original_filename : 'a t -> string option
+  (** [original_filename t] returns the client supplied filename metadata, if
+      one was provided. *)
+
+  val display_filename : 'a t -> string option
+  (** [display_filename t] returns the sanitized display filename candidate, if
+      an original filename was provided. *)
+
+  val size : 'a t -> int
+  (** [size t] returns the number of bytes written. *)
+
+  val save_source :
+    dir:'a Eio.Path.t ->
+    random:Eio.Flow.source_ty Eio.Resource.t ->
+    ?original_filename:string ->
+    Eio.Flow.source_ty Eio.Resource.t ->
+    'a t
+  (** [save_source ~dir ~random ?original_filename source] writes [source] to a
+      generated temporary file under [dir].
+
+      The storage filename is generated from [random] and never from
+      [original_filename]. The file is created with `` `Exclusive 0o600 ``.
+      Successful files remain application-owned. If copying fails after the file
+      is created, the partial file is removed on a best-effort basis.
+
+      @raise End_of_file
+        if [random] cannot provide enough bytes for a storage name.
+      @raise Failure
+        if a unique storage name cannot be created after several attempts. *)
+
+  val save_part :
+    dir:'a Eio.Path.t ->
+    random:Eio.Flow.source_ty Eio.Resource.t ->
+    Part.t ->
+    'a t
+  (** [save_part ~dir ~random part] writes [part]'s body to a generated
+      temporary file under [dir], retaining [Part.filename part] as metadata. *)
+end
+
 module Streaming : sig
   type part
   (** Metadata for one streaming multipart part. *)

@@ -52,6 +52,10 @@ parts.
   characters with `-`, collapses repeated separators and periods, removes
   leading periods and separators, and falls back to `upload` when no safe
   characters remain.
+- `Multipart.Tempfile.save_source` and `Multipart.Tempfile.save_part` write
+  upload bytes to generated temporary files under an application-provided Eio
+  directory capability. Storage names are generated from an explicit random
+  source and never from client supplied filenames.
 - Streaming part sources are valid only during the `on_part` callback. If the
   callback returns before fully consuming the part source, the iterator drains
   the remainder of that part before reading the next part.
@@ -104,6 +108,28 @@ module Multipart : sig
     val sanitize : ?max_length:int -> string -> string
   end
 
+  module Tempfile : sig
+    type 'a t constraint 'a = [> Eio.Fs.dir_ty ]
+
+    val path : 'a t -> 'a Eio.Path.t
+    val original_filename : 'a t -> string option
+    val display_filename : 'a t -> string option
+    val size : 'a t -> int
+
+    val save_source :
+      dir:'a Eio.Path.t ->
+      random:Eio.Flow.source_ty Eio.Resource.t ->
+      ?original_filename:string ->
+      Eio.Flow.source_ty Eio.Resource.t ->
+      'a t
+
+    val save_part :
+      dir:'a Eio.Path.t ->
+      random:Eio.Flow.source_ty Eio.Resource.t ->
+      Part.t ->
+      'a t
+  end
+
   module Streaming : sig
     type part
 
@@ -154,13 +180,19 @@ match Camelio.Multipart.of_request request with
 Streaming upload example:
 
 ```ocaml
-let handler request =
+let handler ~upload_dir ~random request =
   match Camelio.Multipart.Streaming.iter_request request ~on_part:(fun part source ->
     match Camelio.Multipart.Streaming.filename part with
     | None -> Eio.Flow.copy source (Eio.Flow.buffer_sink (Buffer.create 0))
     | Some filename ->
-        let bytes = count_source source in
-        store_upload_metadata filename bytes)
+        let saved =
+          Camelio.Multipart.Tempfile.save_source ~dir:upload_dir ~random
+            ~original_filename:filename source
+        in
+        store_upload_metadata
+          (Camelio.Multipart.Tempfile.display_filename saved)
+          (Camelio.Multipart.Tempfile.path saved)
+          (Camelio.Multipart.Tempfile.size saved))
   with
   | Ok () -> Camelio.Response.text "uploaded\n"
   | Error error ->
@@ -175,10 +207,11 @@ let handler request =
   paths.
 - Phase 3: opt-in server streaming request bodies and
   `Multipart.Streaming.iter_request` for callback-scoped streaming part sources.
+- Phase 4: filename sanitization and generated tempfile helpers.
 
 ## Open Questions
 
-- Should future helpers add filename sanitization, tempfile management, or other
-  storage policy, or leave those entirely to applications?
+- Should future helpers add a higher-level upload storage policy, or leave that
+  entirely to applications?
 - Should multipart streaming add route-level body mode integration once server
   routing policy exists?
