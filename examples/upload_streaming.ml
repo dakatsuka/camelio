@@ -19,6 +19,7 @@ let upload request =
         match Camelio.Multipart.Streaming.filename part with
         | None -> Eio.Flow.copy source (Eio.Flow.buffer_sink (Buffer.create 0))
         | Some filename ->
+            let filename = Camelio.Multipart.Filename.sanitize filename in
             let bytes = count_source source in
             files := (filename, bytes) :: !files)
   with

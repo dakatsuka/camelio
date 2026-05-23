@@ -12,6 +12,24 @@ type error =
   | Body_too_large
   | Unexpected_end_of_body
 
+module Filename : sig
+  val sanitize : ?max_length:int -> string -> string
+  (** [sanitize ?max_length filename] returns a filesystem-friendly filename
+      candidate derived from [filename].
+
+      The result contains only ASCII letters, digits, [.], [_], and [-]. Unsafe
+      characters, including path separators, are replaced with [-]. Repeated
+      replacement characters and repeated periods are collapsed, leading periods
+      and separators are removed, and an empty result falls back to ["upload"].
+
+      [max_length] defaults to [255].
+
+      This helper does not choose a storage path, prevent overwrites, validate
+      file content, or make the client supplied filename trustworthy.
+
+      @raise Invalid_argument if [max_length] is less than [1]. *)
+end
+
 module Part : sig
   type t
   (** One buffered multipart part. *)

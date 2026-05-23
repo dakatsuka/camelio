@@ -46,6 +46,12 @@ parts.
   not a true streaming multipart parser.
 - `Multipart.Streaming.iter_request ?max_header_size request ~on_part` streams
   canonical CRLF multipart parts without buffering whole part bodies.
+- `Multipart.Filename.sanitize ?max_length filename` returns a
+  filesystem-friendly filename candidate for applications that need to retain a
+  client supplied display name. It replaces path separators and other unsafe
+  characters with `-`, collapses repeated separators and periods, removes
+  leading periods and separators, and falls back to `upload` when no safe
+  characters remain.
 - Streaming part sources are valid only during the `on_part` callback. If the
   callback returns before fully consuming the part source, the iterator drains
   the remainder of that part before reading the next part.
@@ -92,6 +98,10 @@ module Multipart : sig
     val copy_to_sink : t -> _ Eio.Flow.sink -> unit
     val save_to_path :
       ?append:bool -> create:Eio.Fs.create -> _ Eio.Path.t -> t -> unit
+  end
+
+  module Filename : sig
+    val sanitize : ?max_length:int -> string -> string
   end
 
   module Streaming : sig

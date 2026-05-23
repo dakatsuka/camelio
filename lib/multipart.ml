@@ -6,6 +6,53 @@ type error =
   | Body_too_large
   | Unexpected_end_of_body
 
+module Filename = struct
+  let fallback = "upload"
+
+  let is_safe = function
+    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '.' | '_' | '-' -> true
+    | _ -> false
+
+  let trim_trailing_separators s =
+    let rec loop index =
+      if index < 0 then -1
+      else
+        match s.[index] with '.' | '_' | '-' -> loop (index - 1) | _ -> index
+    in
+    match loop (String.length s - 1) with
+    | -1 -> ""
+    | index -> String.sub s 0 (index + 1)
+
+  let truncate ~max_length s =
+    if String.length s <= max_length then s
+    else String.sub s 0 max_length |> trim_trailing_separators
+
+  let sanitize ?(max_length = 255) filename =
+    if max_length < 1 then invalid_arg "non-positive max_length";
+    let buffer = Buffer.create (min max_length (String.length filename)) in
+    let append char =
+      let length = Buffer.length buffer in
+      let previous =
+        if length = 0 then None else Some (Buffer.nth buffer (length - 1))
+      in
+      match char with
+      | '.' ->
+          if length > 0 && not (Option.equal Char.equal previous (Some '.'))
+          then Buffer.add_char buffer '.'
+      | '-' ->
+          if length > 0 && not (Option.equal Char.equal previous (Some '-'))
+          then Buffer.add_char buffer '-'
+      | char -> Buffer.add_char buffer char
+    in
+    String.iter
+      (fun char -> append (if is_safe char then char else '-'))
+      filename;
+    let sanitized =
+      Buffer.contents buffer |> trim_trailing_separators |> truncate ~max_length
+    in
+    if String.equal sanitized "" then fallback else sanitized
+end
+
 module Part = struct
   type t = {
     headers : Headers.t;

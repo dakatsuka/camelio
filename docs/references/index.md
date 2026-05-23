@@ -7,6 +7,7 @@ repository.
 
 - [Agentic Development Rules](agentic-development-rules.md)
 - [Eio Documentation](eio-documentation.md)
+- [File Upload Filename Safety](file-upload-filename-safety.md)
 - [Harness Engineering Notes](harness-engineering-notes.md)
 
 ## Reference Policy

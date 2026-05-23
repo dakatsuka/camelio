@@ -49,6 +49,20 @@ let expect_multipart = function
 
 let part_body part = Camelio.Body.to_string (Camelio.Multipart.Part.body part)
 
+let test_filename_sanitize () =
+  let sanitize = Camelio.Multipart.Filename.sanitize in
+  check string "slash" "foo-bar.jpg" (sanitize "foo/bar.jpg");
+  check string "backslash" "foo-bar.jpg" (sanitize "foo\\bar.jpg");
+  check string "colon" "foo-bar.jpg" (sanitize "foo:bar.jpg");
+  check string "collapse unsafe" "foo-bar.jpg" (sanitize "foo///bar.jpg");
+  check string "leading dot" "env" (sanitize ".env");
+  check string "dot traversal" "secret.txt" (sanitize "../secret.txt");
+  check string "blank fallback" "upload" (sanitize "   ");
+  check string "unsafe fallback" "upload" (sanitize "../../../");
+  check string "length" "avatar" (sanitize ~max_length:6 "avatar-image.jpg");
+  check_raises "invalid max length" (Invalid_argument "non-positive max_length")
+    (fun () -> ignore (sanitize ~max_length:0 "avatar.jpg" : string))
+
 let file_part () =
   let multipart =
     Camelio.Multipart.decode ~boundary multipart_body |> expect_multipart
@@ -523,6 +537,7 @@ let () =
     [
       ( "multipart",
         [
+          test_case "filename sanitize" `Quick test_filename_sanitize;
           test_case "decode parts" `Quick test_decode_parts;
           test_case "part copy_to_sink" `Quick test_part_copy_to_sink;
           test_case "part save_to_path" `Quick test_part_save_to_path;

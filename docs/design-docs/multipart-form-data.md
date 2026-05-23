@@ -28,7 +28,7 @@ true streaming iterator for callback-scoped part sources.
 ## Non-Goals
 
 - Automatic tempfile management.
-- Filename sanitization or upload storage policy.
+- Automatic upload storage policy.
 - Full MIME feature coverage.
 - Nested multipart parsing.
 
@@ -93,6 +93,14 @@ part header block exceeds the limit. Premature request-body termination maps to
 `Unexpected_end_of_body`; complete but invalid multipart syntax maps to
 `Malformed_body`.
 
+`Multipart.Filename.sanitize ?max_length filename` is a pure helper for turning
+client supplied filename metadata into a filesystem-friendly candidate name. It
+does not choose a destination directory, prevent overwrites, validate file
+content, or make the original filename trustworthy. It replaces unsafe
+characters, including path separators, with `-`; collapses repeated separators
+and periods; removes leading periods and separators; truncates to `max_length`
+bytes; and falls back to `upload` when no safe characters remain.
+
 ## Contracts
 
 The first implementation should add:
@@ -108,6 +116,10 @@ module Multipart : sig
     | Malformed_body
     | Body_too_large
     | Unexpected_end_of_body
+
+  module Filename : sig
+    val sanitize : ?max_length:int -> string -> string
+  end
 
   module Part : sig
     type t
