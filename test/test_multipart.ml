@@ -94,6 +94,7 @@ let test_filename_sanitize () =
   check string "dot traversal" "secret.txt" (sanitize "../secret.txt");
   check string "blank fallback" "upload" (sanitize "   ");
   check string "unsafe fallback" "upload" (sanitize "../../../");
+  check string "fallback length" "upl" (sanitize ~max_length:3 "../../../");
   check string "length" "avatar" (sanitize ~max_length:6 "avatar-image.jpg");
   check_raises "invalid max length" (Invalid_argument "non-positive max_length")
     (fun () -> ignore (sanitize ~max_length:0 "avatar.jpg" : string))

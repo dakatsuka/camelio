@@ -50,7 +50,8 @@ module Filename = struct
     let sanitized =
       Buffer.contents buffer |> trim_trailing_separators |> truncate ~max_length
     in
-    if String.equal sanitized "" then fallback else sanitized
+    if String.equal sanitized "" then truncate ~max_length fallback
+    else sanitized
 end
 
 module Part = struct

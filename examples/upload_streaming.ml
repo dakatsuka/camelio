@@ -5,13 +5,22 @@ let response_for_multipart_error error =
 let basename path =
   match Eio.Path.split path with None -> "" | Some (_, basename) -> basename
 
+let drain source =
+  let scratch = Cstruct.create 8192 in
+  let rec loop () =
+    match Eio.Flow.single_read source scratch with
+    | exception End_of_file -> ()
+    | _ -> loop ()
+  in
+  loop ()
+
 let upload ~upload_dir ~random request =
   let files = ref [] in
   match
     Camelio.Multipart.Streaming.iter_request request
       ~on_part:(fun part source ->
         match Camelio.Multipart.Streaming.filename part with
-        | None -> Eio.Flow.copy source (Eio.Flow.buffer_sink (Buffer.create 0))
+        | None -> drain source
         | Some filename ->
             let saved =
               Camelio.Multipart.Tempfile.save_source ~dir:upload_dir ~random
