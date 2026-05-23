@@ -88,6 +88,26 @@ let test_run_bad_request () =
   check bool "400" true
     (String.starts_with ~prefix:"HTTP/1.1 400 Bad Request" response)
 
+let test_run_incomplete_headers_bad_request () =
+  require_network ();
+  let response =
+    with_server
+      (fun _ -> fail "handler should not run")
+      (request "GET / HTTP/1.1\r\nHost: example.test\r\n")
+  in
+  check bool "400" true
+    (String.starts_with ~prefix:"HTTP/1.1 400 Bad Request" response)
+
+let test_run_short_body_bad_request () =
+  require_network ();
+  let response =
+    with_server
+      (fun _ -> fail "handler should not run")
+      (request "POST / HTTP/1.1\r\nContent-Length: 4\r\n\r\nhi")
+  in
+  check bool "400" true
+    (String.starts_with ~prefix:"HTTP/1.1 400 Bad Request" response)
+
 let test_run_payload_too_large () =
   require_network ();
   let response =
@@ -117,6 +137,10 @@ let () =
             test_default_max_request_body_size;
           test_case "run success" `Quick test_run_success;
           test_case "run bad request" `Quick test_run_bad_request;
+          test_case "run incomplete headers bad request" `Quick
+            test_run_incomplete_headers_bad_request;
+          test_case "run short body bad request" `Quick
+            test_run_short_body_bad_request;
           test_case "run payload too large" `Quick test_run_payload_too_large;
           test_case "run handler exception" `Quick test_run_handler_exception;
         ] );

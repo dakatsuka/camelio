@@ -41,11 +41,13 @@ let read_request_head flow =
   let rec read_until_headers () =
     match find_header_end buffer with
     | Some header_end -> Ok header_end
-    | None ->
-        let read = Eio.Flow.single_read flow scratch in
-        Buffer.add_string buffer
-          (Cstruct.to_string (Cstruct.sub scratch 0 read));
-        read_until_headers ()
+    | None -> (
+        match Eio.Flow.single_read flow scratch with
+        | exception End_of_file -> Error Http1.Malformed_header
+        | read ->
+            Buffer.add_string buffer
+              (Cstruct.to_string (Cstruct.sub scratch 0 read));
+            read_until_headers ())
   in
   match read_until_headers () with
   | Error error -> Error error
@@ -64,7 +66,7 @@ let read_request_head flow =
 let read_fixed_body ~max_request_body_size flow head buffered_body =
   match Http1.content_length head.Http1.headers with
   | Error error -> Error error
-  | Ok content_length ->
+  | Ok content_length -> (
       if content_length > max_request_body_size then Error Http1.Body_too_large
       else
         let already_read = String.length buffered_body in
@@ -72,8 +74,9 @@ let read_fixed_body ~max_request_body_size flow head buffered_body =
         if remaining <= 0 then Ok (String.sub buffered_body 0 content_length)
         else
           let exact = Cstruct.create remaining in
-          Eio.Flow.read_exact flow exact;
-          Ok (buffered_body ^ Cstruct.to_string exact)
+          match Eio.Flow.read_exact flow exact with
+          | exception End_of_file -> Error Http1.Invalid_content_length
+          | () -> Ok (buffered_body ^ Cstruct.to_string exact))
 
 let read_request_bytes max_request_body_size flow =
   match read_request_head flow with

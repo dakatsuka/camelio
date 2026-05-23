@@ -77,8 +77,23 @@ let trim_ascii s =
   let last = last (length - 1) in
   if last < first then "" else String.sub s first (last - first + 1)
 
+let split_parameter_sections value =
+  let length = String.length value in
+  let rec loop sections start index in_quote =
+    if index >= length then
+      List.rev (String.sub value start (length - start) :: sections)
+    else
+      match value.[index] with
+      | '"' -> loop sections start (index + 1) (not in_quote)
+      | ';' when not in_quote ->
+          let section = String.sub value start (index - start) in
+          loop (section :: sections) (index + 1) (index + 1) in_quote
+      | _ -> loop sections start (index + 1) in_quote
+  in
+  loop [] 0 0 false
+
 let split_parameters value =
-  match String.split_on_char ';' value with
+  match split_parameter_sections value with
   | [] -> ("", [])
   | media_type :: parameters ->
       let parameters =
@@ -127,7 +142,7 @@ let parse_header_line headers line =
   match String.index_opt line ':' with
   | None -> malformed
   | Some index -> (
-      let name = String.sub line 0 index |> trim_ascii in
+      let name = String.sub line 0 index in
       let value =
         String.sub line (index + 1) (String.length line - index - 1)
         |> trim_ascii
