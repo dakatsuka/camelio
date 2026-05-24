@@ -48,7 +48,7 @@ let create_with_request_body_selector ?(keep_alive = true)
     ~handler () =
   if max_request_body_size < 0 then invalid_arg "max_request_body_size < 0";
   validate_request_head_config ~max_request_head_size ~request_head_timeout;
-  let request_body_mode head =
+  let request_body_mode (head : Http1.request_head) =
     try
       let selector_head =
         Request_head.make ~meth:head.Http1.meth ~target:head.target
@@ -75,7 +75,7 @@ let create_router ?(keep_alive = true)
   if max_request_body_size < 0 then invalid_arg "max_request_body_size < 0";
   validate_request_head_config ~max_request_head_size ~request_head_timeout;
   let router_handler = Router.to_handler router in
-  let request_body_mode head =
+  let request_body_mode (head : Http1.request_head) =
     match
       Router.Internal.match_route ~meth:head.Http1.meth ~target:head.target
         router
@@ -236,7 +236,7 @@ let read_fixed_body ~max_request_body_size ~max_chunk_metadata_size reader head
       | exception Body.Malformed_body_read -> Error Http1.Malformed_chunked_body
       )
 
-let request_of_head_body head body =
+let request_of_head_body (head : Http1.request_head) body =
   try
     Request.make ~meth:head.Http1.meth ~target:head.target ~headers:head.headers
       ~body
