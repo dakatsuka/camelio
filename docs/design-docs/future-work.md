@@ -23,16 +23,6 @@ Lightweight HTTP ecosystems tend to keep persistence policy in application code,
 route-local middleware, or optional helpers rather than core server parsing. See
 [Lightweight HTTP Upload Storage](../references/lightweight-http-upload-storage.md).
 
-### Generic Pre-Body Selector API
-
-`Server.create_router` can select `Request_body_mode.t` before reading the body
-because it has structured router metadata. A future API could expose a generic
-pre-body selector for users who do not want `Router.t` but still need to choose
-buffered or streaming bodies from request-head metadata.
-
-This requires deciding what stable request-head type Choku should expose
-publicly.
-
 ### Response Streaming Follow-Up APIs
 
 The first response streaming design should focus on returning streaming bodies

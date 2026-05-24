@@ -41,6 +41,7 @@ None.
 - [Implement Router HEAD And 405 Semantics](completed/0026-implement-router-head-and-405.md)
 - [Document Reverse Proxy Deployment](completed/0027-document-reverse-proxy-deployment.md)
 - [Design Response Streaming](completed/0028-design-response-streaming.md)
+- [Design Generic Pre-Body Selector](completed/0029-design-generic-pre-body-selector.md)
 
 ## When To Create A Plan
 
