@@ -30,11 +30,15 @@ without committing multipart upload behavior to the same API.
 
 - `Form.t` is an immutable ordered multimap of field names to values.
 - `Form.decode` parses an `application/x-www-form-urlencoded` payload string.
-- `Form.of_request` checks `Content-Type` and decodes `Request.body`.
+- `Form.of_request` is the buffered compatibility helper: it checks
+  `Content-Type` and decodes `Request.body` with `Body.to_string`.
 - `Content-Type` matching is case-insensitive for the media type and ignores
   parameters such as `charset=utf-8`.
 - Missing `Content-Type` returns `Missing_content_type`.
 - Unsupported `Content-Type` returns `Unsupported_content_type value`.
+- An otherwise accepted request with a streaming body raises
+  `Invalid_argument`; streaming-capable form parsing is out of scope for this
+  module.
 - Malformed percent escapes return `Malformed_percent_encoding`.
 - Empty payloads decode to `Form.empty`.
 - Entries are separated by `&`.

@@ -8,8 +8,8 @@ Draft
 
 Choku should support browser file upload forms without forcing multipart parts
 into the URL-encoded `Form` abstraction. The first implementation can parse
-buffered request bodies, but the API should leave room for future Eio streaming
-parts.
+buffered request bodies, and the module also exposes explicit Eio streaming APIs
+for large uploads.
 
 ## Goals
 
@@ -36,14 +36,18 @@ parts.
 - `Multipart.Part.t` exposes part headers, field name, filename, content type,
   and buffered body.
 - `Multipart.decode ~boundary body` parses a raw multipart body.
-- `Multipart.of_request request` checks `Content-Type`, extracts `boundary`,
-  and parses `Request.body`.
+- `Multipart.of_request request` is the buffered compatibility helper: it
+  checks `Content-Type`, extracts `boundary`, and parses `Request.body` with
+  `Body.to_string`.
 - `Multipart.of_request_limited ~max_size request` checks `Content-Type`,
   extracts `boundary`, reads at most `max_size` bytes from `Request.body`, and
   parses the resulting buffered multipart body.
 - `Multipart.of_request_limited` supports server-created streaming request
   bodies by using `Body.to_string_limited`; it is an interim bounded adapter,
   not a true streaming multipart parser.
+- An otherwise accepted `Multipart.of_request` call with a streaming body raises
+  `Invalid_argument`; use `of_request_limited` or `Streaming.iter_request` for
+  streaming request bodies.
 - `Multipart.Streaming.iter_request ?max_header_size request ~on_part` streams
   canonical CRLF multipart parts without buffering whole part bodies.
 - `Multipart.Filename.sanitize ?max_length filename` returns a

@@ -6,13 +6,12 @@ Draft
 
 ## Context
 
-The first `Body.t` implementation is a buffered, replayable byte string.
-`application/x-www-form-urlencoded` fits that model because typical form fields
+URL-encoded forms fit buffered request-body parsing because typical form fields
 are small key-value pairs. Multipart uploads do not fit the same model because
-file parts should eventually stream through Eio flows and resource scopes.
+file parts need Eio flow streaming and explicit resource scopes.
 
-This design adds only URL-encoded form parsing and keeps multipart as a separate
-future design with phased streaming work.
+This design keeps URL-encoded form parsing separate from multipart's buffered
+and streaming APIs.
 
 ## Goals
 
@@ -47,6 +46,9 @@ transcode character encodings in this milestone.
 `Form.of_request request` first checks `Content-Type`. It accepts
 `application/x-www-form-urlencoded` case-insensitively, ignoring parameters
 after `;`, then decodes `Body.to_string (Request.body request)`.
+It is a buffered compatibility helper: missing or unsupported content types
+still return data errors, while an otherwise accepted request with a streaming
+body raises `Invalid_argument` from the body read.
 
 Errors are data:
 

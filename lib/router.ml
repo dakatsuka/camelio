@@ -19,7 +19,6 @@ type body_mode = Request_body_mode.t
 
 type route_entry = {
   meth : Method.t;
-  source : string;
   pattern : pattern;
   request_body_mode : body_mode;
   handler : route_handler;
@@ -73,10 +72,10 @@ let compile_pattern pattern =
     in
     Segments (List.rev segments)
 
-let route ?(request_body_mode = Request_body_mode.Buffered) meth source handler
-    router =
-  let pattern = compile_pattern source in
-  let entry = { meth; source; pattern; request_body_mode; handler } in
+let route ?(request_body_mode = Request_body_mode.Buffered) meth pattern_text
+    handler router =
+  let pattern = compile_pattern pattern_text in
+  let entry = { meth; pattern; request_body_mode; handler } in
   { router with routes = router.routes @ [ entry ] }
 
 let get ?request_body_mode pattern handler router =
@@ -127,7 +126,6 @@ let path_of_target target =
   | Some index -> String.sub target 0 index
 
 let match_entry ~meth ~path route =
-  let (_ : string) = route.source in
   if Method.equal route.meth meth then
     match match_pattern route.pattern path with
     | Some params -> Some (route, params)

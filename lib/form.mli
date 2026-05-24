@@ -25,7 +25,12 @@ val of_request : Request.t -> (t, error) result
 (** [of_request request] parses [request]'s body as URL-encoded form data.
 
     The request must have [Content-Type: application/x-www-form-urlencoded].
-    Media type matching is case-insensitive and ignores parameters. *)
+    Media type matching is case-insensitive and ignores parameters.
+
+    This is a buffered compatibility helper.
+
+    @raise Invalid_argument
+      if [request] has an accepted content type and a streaming body. *)
 
 val get : string -> t -> string option
 (** [get name t] returns the first value for [name], if present. *)

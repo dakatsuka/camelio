@@ -15,7 +15,9 @@ val headers : t -> Headers.t
 (** [headers t] returns response headers. *)
 
 val body : t -> Body.t
-(** [body t] returns the buffered response body. *)
+(** [body t] returns the response body.
+
+    HTTP/1.1 server serialization currently expects a buffered body. *)
 
 val with_header : string -> string -> t -> t
 (** [with_header name value t] sets a response header using [Headers.set]. *)

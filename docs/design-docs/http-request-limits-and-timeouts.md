@@ -114,13 +114,18 @@ Extend `Http1.error` with:
 
 Map those errors in `Http1.response_for_error`.
 
-Change `Server.read_request_head` to accept:
+Change the request-head read path to keep its body-prefix result explicit:
 
 ```ocaml
-~max_request_head_size:int ->
-?request_head_timeout:float ->
-_ Eio.Flow.source ->
-(request_head_read, Http1.error) result
+type request_head_with_body_prefix = {
+  body_prefix : string;
+  head : Http1.request_head;
+}
+
+val read_request_head_and_body_prefix :
+  max_request_head_size:int ->
+  _ Eio.Flow.source ->
+  (request_head_with_body_prefix, Http1.error) result
 ```
 
 The read loop should check the accumulated buffer size after each read and

@@ -156,7 +156,12 @@ val of_request : Request.t -> (t, error) result
     [multipart/form-data].
 
     The request must have [Content-Type: multipart/form-data] with a non-empty
-    [boundary] parameter. Media type matching is case-insensitive. *)
+    [boundary] parameter. Media type matching is case-insensitive.
+
+    This is a buffered compatibility helper.
+
+    @raise Invalid_argument
+      if [request] has an accepted content type and a streaming body. *)
 
 val of_request_limited : max_size:int -> Request.t -> (t, error) result
 (** [of_request_limited ~max_size request] parses [request]'s body as

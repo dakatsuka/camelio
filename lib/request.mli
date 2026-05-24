@@ -25,4 +25,8 @@ val headers : t -> Headers.t
 (** [headers t] returns request headers. *)
 
 val body : t -> Body.t
-(** [body t] returns the buffered request body. *)
+(** [body t] returns the request body.
+
+    The body may be buffered or streaming depending on server and route
+    configuration. Use {!Body.is_buffered} or {!Body.with_source} when the
+    delivery mode matters. *)

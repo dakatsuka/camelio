@@ -67,6 +67,9 @@ parameters such as `filename*`.
 case-insensitively and extracts a non-empty `boundary` parameter. The boundary
 may be token-like or quoted. The parser does not scan for a boundary when the
 parameter is absent.
+It is a buffered compatibility helper: after content-type and boundary
+validation, it reads the body with `Body.to_string`, so an otherwise accepted
+request with a streaming body raises `Invalid_argument`.
 
 `Multipart.of_request_limited ~max_size request` performs the same content-type
 and boundary validation, then reads `Request.body request` with

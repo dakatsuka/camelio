@@ -44,7 +44,8 @@ val serialize_response : ?include_body:bool -> Response.t -> string
     appended. *)
 
 val response_for_error : error -> Response.t
-(** [response_for_error error] returns the first-milestone error response. *)
+(** [response_for_error error] returns the HTTP/1.1 error response for a request
+    parsing or reading failure. *)
 
 val content_length : Headers.t -> (int, error) result
 (** [content_length headers] validates and returns the request body length. *)
