@@ -46,6 +46,7 @@ None.
 - [Implement Response Streaming](completed/0031-implement-response-streaming.md)
 - [Inventory HTTP Server Baseline](completed/0032-inventory-http-server-baseline.md)
 - [Refresh Minimal Server Specs](completed/0033-refresh-minimal-server-specs.md)
+- [Design Minimal HTTP Client](completed/0034-design-minimal-http-client.md)
 
 ## When To Create A Plan
 

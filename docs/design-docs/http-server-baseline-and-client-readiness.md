@@ -78,8 +78,8 @@ need absolute-form for proxies.
 
 Before implementing the client, design should explicitly decide:
 
-- whether `Request.t` remains a server/application request value;
-- whether HTTP Client gets a separate outbound request type;
+- `Request.t` remains a server/application request value;
+- HTTP Client gets separate outbound request and inbound response types;
 - which target constructors or validation helpers are shared;
 - how client URI authority, scheme, path, and query are represented without
   weakening server request validation.
@@ -178,10 +178,10 @@ rather than by extending `Server` modules.
 
 Important inputs:
 
-- Reuse shared `Method.t`, `Status.t`, `Headers.t`, `Body.t`, and likely
-  `Response.t` where their contracts fit.
-- Be careful with `Request.t`: current validation is server/application
-  oriented.
+- Reuse shared `Method.t`, `Status.t`, `Headers.t`, and buffered `Body.t`
+  where their contracts fit.
+- Keep server `Request.t` and `Response.t` separate from client request and
+  response values.
 - Preserve Eio direct-style ownership: request and response streaming should
   have explicit lifetimes.
 - Keep TLS as a separate transport design unless the first client milestone
@@ -201,8 +201,6 @@ over an Eio flow/network connection, with explicit body delivery and no pool.
 
 ## Open Questions
 
-- Should outbound client requests reuse `Request.t`, or should Choku introduce
-  a separate `Client.Request.t`?
 - Which URI package or small internal URI representation should be used for the
   first client milestone?
 - Should the first client support only buffered responses, or should streaming

@@ -1,4 +1,4 @@
-(** HTTP request values shared by server and future client APIs. *)
+(** HTTP server request values. *)
 
 type t
 

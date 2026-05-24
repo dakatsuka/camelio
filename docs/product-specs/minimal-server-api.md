@@ -19,7 +19,7 @@ without becoming a full web framework.
 - Users can choose buffered or streaming request body delivery.
 - Users can return buffered or streaming responses.
 - Handler tests can run without opening a network socket.
-- Shared HTTP value types remain compatible with future HTTP Client design where
+- Shared HTTP primitives remain compatible with future HTTP Client design where
   their contracts fit.
 
 ## Non-Goals
@@ -47,8 +47,8 @@ without becoming a full web framework.
 - Applications may use Eio capabilities captured by closure inside handlers.
 - The API must not expose `Lwt.t`, `Async.Deferred.t`, `cohttp` types, or
   callback-based scheduling.
-- Future HTTP Client, HTTP/2, and HTTP/3 designs should reuse shared value types
-  only where their contracts fit.
+- Future HTTP Client, HTTP/2, and HTTP/3 designs should reuse shared
+  lower-level protocol values only where their contracts fit.
 - Request bodies are buffered and replayable by default.
 - `Server.create ?request_body_mode:Buffered` reads the full request body before
   invoking the handler and provides a replayable `Body.t`.
@@ -146,10 +146,10 @@ status, and body values. Bodies constructed directly with `Body.string` are
 buffered and replayable. Server-created request streaming bodies and
 response-stream writer bodies are single-consumption.
 
-`Request.t` is currently server/application oriented. Its target validation
-accepts the origin-form subset used by server handlers. HTTP Client design must
-decide whether outbound requests reuse `Request.t`, introduce a separate
-client request type, or add shared target/URI helper types.
+`Request.t` and `Response.t` are server/application oriented. HTTP Client uses
+separate client request and response types, while sharing lower-level protocol
+values such as `Method.t`, `Headers.t`, `Status.t`, and buffered `Body.t` where
+their contracts fit.
 
 Header lookup is case-insensitive. Header insertion order is preserved.
 `Headers.add` appends, `Headers.set` removes case-insensitive matches and
@@ -209,24 +209,22 @@ let stream_report _request =
       List.iter (fun line -> Eio.Flow.copy_string line sink) report_lines)
 ```
 
-Future client compatibility:
+Future client compatibility keeps server and client request/response values
+separate:
 
 ```ocaml
-(* Illustrative only; Client is not part of the server API. *)
-let application_request =
-  Choku.Request.make
+(* Illustrative only; Client is not part of the server API milestone. *)
+let outbound_request =
+  Choku.Client.Request.make
     ~meth:Choku.Method.GET
-    ~target:"/"
-    ~headers:Choku.Headers.empty
-    ~body:Choku.Body.empty
+    ~url:"http://example.test/"
+    ()
 ```
 
 ## Open Questions
 
-- Should outbound client requests reuse `Request.t`, or should Choku introduce a
-  separate HTTP Client request type?
-- Which request-target and URI constructors should be added when HTTP Client
-  support is designed?
+- Which request-target and URI helpers should be shared after HTTP Client
+  support is implemented?
 - Which TLS library or abstraction should be used by future client/server
   transport support?
 - What body, trailer, multiplexing, and lifecycle abstractions are needed before

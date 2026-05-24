@@ -12,6 +12,7 @@ This directory is the source of truth for Choku's technical design.
 - [HTTP/1.1 Chunked Request Bodies](http1-chunked-request-bodies.md)
 - [HTTP/1.1 Persistent Connections](http1-persistent-connections.md)
 - [Initial Architecture](initial-architecture.md)
+- [Minimal HTTP Client](minimal-http-client.md)
 - [Minimal Router DSL](minimal-router-dsl.md)
 - [Minimal Server, Handler, and Middleware API](minimal-server-handler-middleware-api.md)
 - [Multipart Form-Data Support](multipart-form-data.md)

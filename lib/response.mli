@@ -1,4 +1,4 @@
-(** HTTP response values. *)
+(** HTTP server response values. *)
 
 type t
 

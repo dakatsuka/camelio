@@ -21,8 +21,8 @@ and testable.
 - Support buffered and streaming responses.
 - Support conservative HTTP/1.1 persistent connections.
 - Keep socket-free unit tests for shared HTTP values and handler logic.
-- Keep shared HTTP values suitable for future HTTP Client design where their
-  contracts fit.
+- Keep lower-level protocol values suitable for future HTTP Client design where
+  their contracts fit.
 
 ## Non-Goals
 
@@ -150,9 +150,9 @@ This milestone is implemented by the public contracts from:
 - [Response Streaming](response-streaming.md)
 - [Minimal Server, Handler, and Middleware API](../design-docs/minimal-server-handler-middleware-api.md)
 
-The current `Request.t` target contract is server/application oriented. HTTP
-Client design must decide whether outbound requests reuse `Request.t` or use a
-separate client request type.
+The current `Request.t` and `Response.t` contracts are server/application
+oriented. HTTP Client uses separate client request and response types, while
+sharing lower-level protocol values where their contracts fit.
 
 ## Examples
 

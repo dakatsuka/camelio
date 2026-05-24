@@ -47,13 +47,10 @@ The first public server API should revolve around three concepts:
 - `Response.t`: a response value that describes status, headers, and body.
 - `Handler.t`: a function from request to response.
 
-`Request.t`, `Response.t`, `Method.t`, `Headers.t`, `Status.t`, and `Body.t`
-belong to the shared HTTP value layer, not to the server layer. The first
-milestone exposes them as top-level modules under the `Choku` library, such as
-`Choku.Request` and `Choku.Response`, for ergonomic use. The first milestone
-uses them from the server only, but their naming and contracts should avoid
-server-only assumptions so a future `Client` module can reuse them for reverse
-proxy and outbound HTTP use cases.
+`Request.t` and `Response.t` are the server/application request and response
+values exposed as top-level modules under the `Choku` library for ergonomic
+use. Shared lower-level protocol values such as `Method.t`, `Headers.t`,
+`Status.t`, and `Body.t` should stay reusable where their contracts fit.
 
 Middleware should be a function from handler to handler:
 
@@ -140,11 +137,13 @@ layer rather than a server dependency.
 
 The first milestone should not include an HTTP client. However, Choku should
 expect to add one because reverse proxy and service-to-service use cases need
-outbound HTTP. The future client should reuse the shared HTTP value types:
+outbound HTTP. The future client should use separate client request and
+response types while reusing shared protocol values where their contracts fit:
 
-- `Request.t` for outbound request construction;
-- `Response.t` for inbound client responses;
-- `Method.t`, `Headers.t`, `Status.t`, and `Body.t` for protocol values.
+- `Client.Request.t` for outbound request construction;
+- `Client.Response.t` for inbound client responses;
+- `Method.t`, `Headers.t`, `Status.t`, and buffered `Body.t` for protocol
+  values.
 
 Client-only concerns should not leak into the server API. Future client
 configuration should own concerns such as target URI parsing, connection reuse,
@@ -164,14 +163,14 @@ should promise HTTPS support.
 ## Protocol Version Compatibility
 
 The first milestone should implement HTTP/1.1 only. The public handler and
-middleware contracts should remain protocol-neutral: handlers operate on shared
-`Request.t` and `Response.t` values rather than HTTP/1.1 parser state,
-connection state, or socket state.
+middleware contracts should remain protocol-neutral: handlers operate on
+server/application `Request.t` and `Response.t` values rather than HTTP/1.1
+parser state, connection state, or socket state.
 
 HTTP/2 and HTTP/3 are not part of the first server milestone, but the design
 should avoid unnecessary HTTP/1.1 coupling:
 
-- shared HTTP value types are exposed as top-level modules such as
+- server HTTP value types are exposed as top-level modules such as
   `Choku.Request` and `Choku.Response`;
 - HTTP/1.1 parsing and encoding belong in `Choku.Http1`;
 - future HTTP/2 framing, stream multiplexing, and flow control should belong in
@@ -234,8 +233,8 @@ response after later middleware. The server composes the stack once at
 `Request.t`, `Response.t`, and body types should be abstract in public
 interfaces. The first implementation should expose constructors and accessors
 rather than public record fields or public variant representation. This keeps
-room for future streaming support and client reuse without forcing users to
-pattern match on internal representation.
+room for future streaming support and shared lower-level protocol reuse without
+forcing users to pattern match on internal representation.
 
 First milestone request contract:
 
@@ -306,9 +305,9 @@ DEL. `Request.path` returns the origin-form path without the query string; for
 example, `"/items?a=1"` becomes `"/items"`. Unsupported request-target forms are
 rejected by the HTTP/1 parser before a `Request.t` reaches a handler.
 
-This first milestone target contract is server-oriented. A future client design
-may add constructors for absolute-form request targets or URI-based outbound
-requests without changing the server handler contract.
+This first milestone target contract is server-oriented. HTTP Client uses a
+separate `Client.Request.t` so URI-based outbound requests can evolve without
+changing the server handler contract.
 
 First milestone response contract:
 
