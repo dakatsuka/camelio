@@ -19,7 +19,21 @@ val stream :
 
     [write] is invoked by the server while serializing the response. The sink
     passed to [write] is valid only for that callback invocation. Streaming
-    response bodies are single-consumption.
+    response bodies are single-consumption. Open files or allocate other
+    stream-scoped resources inside [write] so their lifetime covers response
+    serialization.
+
+    When [content_length] is omitted, the HTTP/1.1 server writes the response
+    with [Transfer-Encoding: chunked]. When [content_length] is provided,
+    [write] must write exactly that many bytes; writing fewer or more bytes is
+    treated as a streaming failure and closes the connection.
+
+    The HTTP/1.1 server owns [Content-Length], [Transfer-Encoding], and
+    [Connection] while serializing responses. Values for those headers in
+    [headers] are replaced.
+
+    [write] is not invoked for [HEAD] responses or for statuses that cannot
+    carry a response body, such as [1xx], [204], and [304].
 
     @raise Invalid_argument if [content_length] is negative. *)
 

@@ -248,6 +248,23 @@ let download _request =
 
 When `~content_length` is omitted, Choku uses HTTP/1.1 chunked transfer coding.
 If the length is known, pass `~content_length:n` and write exactly `n` bytes.
+Choku owns `Content-Length`, `Transfer-Encoding`, and `Connection` while writing
+HTTP/1.1 responses, so application-provided values for those headers are
+replaced.
+
+The stream callback runs after the handler returns, in the connection fiber. The
+sink is valid only during the callback, so open files and other stream-scoped
+resources inside the callback:
+
+```ocaml
+let file_response path =
+  Choku.Response.stream (fun sink ->
+      Eio.Path.with_open_in path (fun source -> Eio.Flow.copy source sink))
+```
+
+If the callback raises or writes a different number of bytes than the declared
+`~content_length`, Choku closes the connection. `HEAD`, `1xx`, `204`, and `304`
+responses do not invoke the callback because no response body is written.
 
 The repository includes runnable examples:
 
