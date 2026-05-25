@@ -1,0 +1,4 @@
+(library
+ (name choku_test)
+ (public_name choku.test)
+ (libraries choku eio))

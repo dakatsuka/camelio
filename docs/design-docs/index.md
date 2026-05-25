@@ -22,6 +22,7 @@ This directory is the source of truth for Choku's technical design.
 - [Response Streaming](response-streaming.md)
 - [Route-Level Body Mode](route-level-body-mode.md)
 - [Streaming Request Bodies](streaming-request-bodies.md)
+- [Testing Support](testing-support.md)
 - [URL-Encoded Form Support](form-urlencoded.md)
 - [ADR Index](adr/index.md)
 

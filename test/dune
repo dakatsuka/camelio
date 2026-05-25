@@ -11,8 +11,16 @@
   test_handler
   test_middleware
   test_request_head
+  test_choku_test
   test_client
   test_router
   test_http1
   test_server)
- (libraries choku alcotest eio eio_main unix mirage-crypto-rng.unix))
+ (libraries
+  choku
+  choku.test
+  alcotest
+  eio
+  eio_main
+  unix
+  mirage-crypto-rng.unix))

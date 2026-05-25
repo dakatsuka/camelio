@@ -406,10 +406,27 @@ let handle_connection ?mono_clock t flow =
   loop ();
   Eio.Flow.shutdown flow `All
 
-let run ~sw ~net ?mono_clock ~addr t =
+let run_listener ~sw ?mono_clock ~socket t =
   if Option.is_some t.request_head_timeout && Option.is_none mono_clock then
     invalid_arg "request_head_timeout requires Server.run ~mono_clock";
+  let finished, resolve_finished = Eio.Promise.create () in
+  Eio.Fiber.fork ~sw (fun () ->
+      let result =
+        match
+          (Eio.Net.run_server socket
+             ~on_error:(function
+               | Eio.Cancel.Cancelled _ as exn -> raise exn | _ -> ())
+             (fun flow _addr -> handle_connection ?mono_clock t flow)
+            : unit)
+        with
+        | () -> Ok ()
+        | exception exn -> Error (exn, Printexc.get_raw_backtrace ())
+      in
+      ignore (Eio.Promise.try_resolve resolve_finished result : bool));
+  match Eio.Promise.await finished with
+  | Ok () -> ()
+  | Error (exn, backtrace) -> Printexc.raise_with_backtrace exn backtrace
+
+let run ~sw ~net ?mono_clock ~addr t =
   let socket = Eio.Net.listen ~reuse_addr:true ~backlog:128 ~sw net addr in
-  Eio.Net.run_server socket
-    ~on_error:(function Eio.Cancel.Cancelled _ as exn -> raise exn | _ -> ())
-    (fun flow _addr -> handle_connection ?mono_clock t flow)
+  run_listener ~sw ?mono_clock ~socket t

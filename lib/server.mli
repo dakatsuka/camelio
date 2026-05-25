@@ -105,3 +105,24 @@ val run :
 
     @raise Invalid_argument
       if request-head timeout is enabled and [mono_clock] is omitted. *)
+
+val run_listener :
+  sw:Eio.Switch.t ->
+  ?mono_clock:'b Eio.Time.Mono.t ->
+  socket:'a Eio.Net.listening_socket ->
+  t ->
+  unit
+(** [run_listener ~sw ~socket server] accepts HTTP connections from an existing
+    Eio listening socket.
+
+    This is useful for test harnesses and embedders that need to bind a socket,
+    inspect its actual address with [Eio.Net.listening_addr], and then start
+    serving without a port-selection race. The caller owns both [sw] and
+    [socket]. Choku attaches connection fibers to the server loop and runs until
+    [sw] is cancelled or the listening socket fails.
+
+    [mono_clock] is required when [server] was created with
+    [request_head_timeout = Some _].
+
+    @raise Invalid_argument
+      if request-head timeout is enabled and [mono_clock] is omitted. *)
