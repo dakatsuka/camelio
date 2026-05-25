@@ -7,11 +7,11 @@
 (source
  (github dakatsuka/choku))
 
-(authors "Choku contributors")
+(authors "Dai Akatsuka")
 
-(maintainers "Choku contributors")
+(maintainers "Dai Akatsuka")
 
-(license ISC)
+(license MIT)
 
 (package
  (name choku)

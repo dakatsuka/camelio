@@ -3,9 +3,9 @@ opam-version: "2.0"
 synopsis: "A pure Eio HTTP server for OCaml 5"
 description:
   "Choku is an OCaml 5 HTTP server project designed around Eio-native direct-style IO."
-maintainer: ["Choku contributors"]
-authors: ["Choku contributors"]
-license: "ISC"
+maintainer: ["Dai Akatsuka"]
+authors: ["Dai Akatsuka"]
+license: "MIT"
 homepage: "https://github.com/dakatsuka/choku"
 bug-reports: "https://github.com/dakatsuka/choku/issues"
 depends: [
