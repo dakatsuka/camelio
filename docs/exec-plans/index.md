@@ -48,6 +48,7 @@ None.
 - [Refresh Minimal Server Specs](completed/0033-refresh-minimal-server-specs.md)
 - [Design Minimal HTTP Client](completed/0034-design-minimal-http-client.md)
 - [Implement Minimal HTTP Client](completed/0035-implement-minimal-http-client.md)
+- [Implement HTTPS Client](completed/0036-implement-https-client.md)
 
 ## When To Create A Plan
 

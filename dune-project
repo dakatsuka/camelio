@@ -27,7 +27,21 @@
    (>= 1.0))
   (eio_main
    (>= 1.0))
+  (tls
+   (>= 2.0.4))
+  (tls-eio
+   (>= 2.0.4))
+  (ca-certs
+   (>= 1.0.3))
+  (x509
+   (>= 1.0.6))
+  (domain-name
+   (>= 0.5.0))
+  (ptime
+   (>= 1.2.0))
   (alcotest
+   :with-test)
+  (mirage-crypto-rng
    :with-test)
   (ocamlformat
    :with-dev-setup)))

@@ -7,6 +7,7 @@ repository.
 
 - [Agentic Development Rules](agentic-development-rules.md)
 - [Eio Documentation](eio-documentation.md)
+- [Eio TLS References](eio-tls.md)
 - [File Upload Filename Safety](file-upload-filename-safety.md)
 - [Harness Engineering Notes](harness-engineering-notes.md)
 - [HTTP Server Limits And Timeouts](http-server-limits-and-timeouts.md)

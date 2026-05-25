@@ -17,6 +17,8 @@ module Error : sig
     | Request_body_not_buffered
     | Unsupported_method of Method.t
     | Unsupported_upgrade
+    | Tls_configuration_failed of string
+    | Tls_handshake_failed of exn
 
   val pp : Format.formatter -> t -> unit
   (** [pp formatter t] formats [t] for diagnostics. *)
@@ -26,6 +28,8 @@ module Error : sig
 end
 
 module Request : sig
+  type scheme = Http | Https  (** Parsed URL scheme. *)
+
   type t
   (** Outbound client request. *)
 
@@ -38,8 +42,14 @@ module Request : sig
     (t, Error.t) result
   (** [make ?headers ?body ~meth ~url ()] creates a client request.
 
-      The first milestone accepts absolute [http://] URLs only and rejects
-      [CONNECT]. URL validation errors are returned explicitly. *)
+      The client accepts absolute [http://] and [https://] URLs and rejects
+      [CONNECT]. URL validation errors are returned explicitly.
+
+      The first HTTPS milestone accepts DNS host names only and rejects IP
+      address literals in [https://] URLs. *)
+
+  val scheme : t -> scheme
+  (** [scheme t] returns the parsed URL scheme. *)
 
   val meth : t -> Method.t
   (** [meth t] returns the request method. *)
@@ -113,25 +123,46 @@ module Middleware : sig
   (** [apply [a; b; c] h] is [a (b (c h))]. *)
 end
 
+module Tls : sig
+  type t
+  (** HTTPS trust policy. *)
+
+  val system : unit -> (t, Error.t) result
+  (** [system ()] loads the operating-system trust store. *)
+
+  val ca_file : _ Eio.Path.t -> (t, Error.t) result
+  (** [ca_file path] loads trust anchors from PEM certificates in [path]. *)
+
+  val ca_dir : _ Eio.Path.t -> (t, Error.t) result
+  (** [ca_dir path] loads trust anchors from PEM certificate files directly
+      under [path]. *)
+end
+
 val create :
+  ?tls:Tls.t ->
   ?max_response_head_size:int ->
   ?max_response_body_size:int ->
   ?middlewares:Middleware.t list ->
   net:'a Eio.Net.t ->
   unit ->
   t
-(** [create ?max_response_head_size ?max_response_body_size ?middlewares ~net
-     ()] creates a plain HTTP client.
+(** [create ?tls ?max_response_head_size ?max_response_body_size ?middlewares
+     ~net ()] creates an HTTP client.
 
     The default response head limit is [16_384] bytes. The default response body
     limit is [1_048_576] bytes.
+
+    When [tls] is omitted, HTTPS requests use the operating-system trust store.
+    Trust-store loading errors are returned when making an HTTPS request, not
+    when creating an HTTP-only client.
 
     @raise Invalid_argument
       if [max_response_head_size <= 0] or [max_response_body_size < 0]. *)
 
 val request : sw:Eio.Switch.t -> t -> Request.t -> (Response.t, Error.t) result
-(** [request ~sw client request] sends one HTTP/1.1 request over one plain TCP
-    connection and returns a fully buffered response.
+(** [request ~sw client request] sends one HTTP/1.1 request over one connection
+    and returns a fully buffered response. [https://] requests wrap the TCP
+    connection in TLS before HTTP bytes are exchanged.
 
     The caller owns [sw]. Choku closes the connection for each attempt on
     success, client error, non-cancellation exception mapping, and cancellation.

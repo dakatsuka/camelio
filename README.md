@@ -20,8 +20,8 @@ milestone is a minimal HTTP/1.1 server over plain TCP with:
 - middleware as `Handler.t -> Handler.t`;
 - an optional method-and-path router;
 - buffered and streaming `multipart/form-data` helpers;
-- a minimal plain HTTP/1.1 client;
-- no TLS, HTTP/2, or HTTP/3 public APIs yet.
+- a minimal HTTP/1.1 client with plain HTTP and HTTPS;
+- no HTTP/2 or HTTP/3 public APIs yet.
 
 ## Usage
 
@@ -310,10 +310,14 @@ let () =
             (Body.to_string (Client.Response.body response)))
 ```
 
-The first client milestone accepts absolute `http://` URLs only. It opens one
-plain TCP connection per request, sends `Connection: close`, and returns a fully
-buffered response. The default response limits are 16 KiB for the response head
-and 1 MiB for the response body:
+The client accepts absolute `http://` and `https://` URLs. It opens one
+connection per request, sends `Connection: close`, and returns a fully buffered
+response. HTTPS uses TLS 1.2 or newer with system CA roots by default. The first
+HTTPS milestone supports DNS host names only; IP address literals in
+`https://` URLs are rejected.
+
+The default response limits are 16 KiB for the response head and 1 MiB for the
+response body:
 
 ```ocaml
 let client =
@@ -322,6 +326,48 @@ let client =
     ~max_response_head_size:16_384
     ~max_response_body_size:1_048_576
     ()
+```
+
+Programs that make HTTPS requests must initialize the Mirage Crypto RNG before
+using TLS. Add `mirage-crypto-rng.unix` to the executable libraries:
+
+```lisp
+(executable
+ (name app)
+ (libraries choku eio eio_main mirage-crypto-rng.unix))
+```
+
+Then initialize the RNG before entering the Eio main loop and send an HTTPS
+request:
+
+```ocaml
+let () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+  let open Choku in
+  let net = Eio.Stdenv.net env in
+  let client = Client.create ~net () in
+  match Client.Request.make ~meth:Method.GET ~url:"https://example.com/" () with
+  | Error error ->
+      Format.eprintf "request error: %a@." Client.Error.pp error
+  | Ok request -> (
+      match Client.request ~sw client request with
+      | Error error ->
+          Format.eprintf "client error: %a@." Client.Error.pp error
+      | Ok response ->
+          Printf.printf "status: %d\n"
+            (Status.code (Client.Response.status response)))
+```
+
+Use `Client.Tls.ca_file` or `Client.Tls.ca_dir` when an application needs a
+custom trust store:
+
+```ocaml
+let client_with_ca root net =
+  match Choku.Client.Tls.ca_file root with
+  | Error error -> Error error
+  | Ok tls -> Ok (Choku.Client.create ~tls ~net ())
 ```
 
 Try the client from `utop` with Dune's local toplevel:
@@ -334,6 +380,8 @@ Then load `eio_main` and define a small helper:
 
 ```ocaml
 # #require "eio_main";;
+# #require "mirage-crypto-rng.unix";;
+# Mirage_crypto_rng_unix.use_default ();;
 # let fetch url =
     Eio_main.run @@ fun env ->
     Eio.Switch.run @@ fun sw ->
@@ -345,10 +393,10 @@ Then load `eio_main` and define a small helper:
     | Ok request -> Client.request ~sw client request;;
 ```
 
-Call it with a plain HTTP URL:
+Call it with an HTTP or HTTPS URL:
 
 ```ocaml
-# match fetch "http://example.com/" with
+# match fetch "https://example.com/" with
   | Error error ->
       Format.printf "error: %a@." Choku.Client.Error.pp error
   | Ok response ->
@@ -421,6 +469,7 @@ environments. Run them explicitly when sockets are available:
 
 ```sh
 CHOKU_RUN_NETWORK_TESTS=1 dune exec test/test_server.exe
+CHOKU_RUN_NETWORK_TESTS=1 dune exec test/test_client.exe
 ```
 
 The project uses:
@@ -440,5 +489,6 @@ Key design documents:
 - [Minimal Server API](docs/product-specs/minimal-server-api.md)
 - [Minimal HTTP/1.1 Server Milestone](docs/product-specs/minimal-http1-server.md)
 - [Minimal HTTP Client](docs/product-specs/minimal-http-client.md)
+- [HTTPS Client](docs/product-specs/https-client.md)
 - [Minimal Server, Handler, and Middleware API](docs/design-docs/minimal-server-handler-middleware-api.md)
 - [Project Layout and Tooling](docs/design-docs/project-layout-and-tooling.md)

@@ -7,6 +7,7 @@ Product specs define externally visible behavior and user expectations.
 - [Minimal HTTP/1.1 Server Milestone](minimal-http1-server.md)
 - [Minimal HTTP Client](minimal-http-client.md)
 - [Generic Pre-Body Selector](generic-pre-body-selector.md)
+- [HTTPS Client](https-client.md)
 - [HTTP/1.1 Persistent Connections](http1-persistent-connections.md)
 - [Router HEAD And 405 Semantics](router-head-and-405.md)
 - [Minimal Router DSL](minimal-router-dsl.md)

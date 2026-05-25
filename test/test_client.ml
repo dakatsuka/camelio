@@ -37,6 +37,21 @@ let test_request_normalizes_url () =
   check int "port" 8080 (Choku.Client.Request.port request);
   check string "target" "/items?a=1" (Choku.Client.Request.target request)
 
+let test_request_normalizes_https_url () =
+  let request =
+    request_ok ~meth:Choku.Method.GET ~url:"https://example.test:8443/items?a=1"
+      ()
+  in
+  check bool "scheme" true
+    (match Choku.Client.Request.scheme request with
+    | Choku.Client.Request.Https -> true
+    | Choku.Client.Request.Http -> false);
+  check string "authority" "example.test:8443"
+    (Choku.Client.Request.authority request);
+  check string "host" "example.test" (Choku.Client.Request.host request);
+  check int "port" 8443 (Choku.Client.Request.port request);
+  check string "target" "/items?a=1" (Choku.Client.Request.target request)
+
 let test_request_defaults_path_and_port () =
   let request =
     request_ok ~meth:Choku.Method.GET ~url:"http://example.test" ()
@@ -44,6 +59,15 @@ let test_request_defaults_path_and_port () =
   check string "authority" "example.test"
     (Choku.Client.Request.authority request);
   check int "port" 80 (Choku.Client.Request.port request);
+  check string "target" "/" (Choku.Client.Request.target request)
+
+let test_request_defaults_https_path_and_port () =
+  let request =
+    request_ok ~meth:Choku.Method.GET ~url:"https://example.test" ()
+  in
+  check string "authority" "example.test"
+    (Choku.Client.Request.authority request);
+  check int "port" 443 (Choku.Client.Request.port request);
   check string "target" "/" (Choku.Client.Request.target request)
 
 let test_request_omits_explicit_default_port_from_authority () =
@@ -54,9 +78,29 @@ let test_request_omits_explicit_default_port_from_authority () =
     (Choku.Client.Request.authority request);
   check int "port" 80 (Choku.Client.Request.port request)
 
+let test_request_omits_explicit_https_default_port_from_authority () =
+  let request =
+    request_ok ~meth:Choku.Method.GET ~url:"https://example.test:443/" ()
+  in
+  check string "authority" "example.test"
+    (Choku.Client.Request.authority request);
+  check int "port" 443 (Choku.Client.Request.port request)
+
+let test_request_accepts_single_label_https_host () =
+  let request = request_ok ~meth:Choku.Method.GET ~url:"https://cafe/" () in
+  check string "host" "cafe" (Choku.Client.Request.host request);
+  check string "authority" "cafe" (Choku.Client.Request.authority request);
+  check int "port" 443 (Choku.Client.Request.port request)
+
 let test_request_rejects_unsupported_url_and_method () =
-  check client_error "scheme" (Choku.Client.Error.Unsupported_scheme "https")
-    (request_error ~meth:Choku.Method.GET ~url:"https://example.test/" ());
+  check client_error "scheme" (Choku.Client.Error.Unsupported_scheme "ftp")
+    (request_error ~meth:Choku.Method.GET ~url:"ftp://example.test/" ());
+  check client_error "https ip"
+    (Choku.Client.Error.Invalid_url "https IP literal not supported")
+    (request_error ~meth:Choku.Method.GET ~url:"https://127.0.0.1/" ());
+  check client_error "https numeric ip"
+    (Choku.Client.Error.Invalid_url "https IP literal not supported")
+    (request_error ~meth:Choku.Method.GET ~url:"https://0x7f000001/" ());
   check client_error "fragment"
     (Choku.Client.Error.Invalid_url "fragment not allowed")
     (request_error ~meth:Choku.Method.GET ~url:"http://example.test/#x" ());
@@ -120,6 +164,28 @@ let test_create_rejects_invalid_limits () =
       ignore
         (Choku.Client.create ~net ~max_response_body_size:(-1) ()
           : Choku.Client.t))
+
+let test_tls_ca_file_rejects_empty_file () =
+  Eio_main.run @@ fun env ->
+  let ( / ) = Eio.Path.( / ) in
+  let path =
+    Eio.Stdenv.fs env
+    / Printf.sprintf "/tmp/choku-empty-ca-%d.pem" (Unix.getpid ())
+  in
+  Fun.protect
+    ~finally:(fun () ->
+      match Eio.Path.native path with
+      | None -> ()
+      | Some path -> ( try Unix.unlink path with Unix.Unix_error _ -> ()))
+    (fun () ->
+      Eio.Path.save ~create:(`Or_truncate 0o600) path "";
+      check
+        (result reject client_error)
+        "error"
+        (Error
+           (Choku.Client.Error.Tls_configuration_failed
+              "no CA certificates found"))
+        (Choku.Client.Tls.ca_file path))
 
 let available_port () =
   let socket = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
@@ -416,16 +482,41 @@ let test_repeated_requests_under_one_switch () =
     Eio.Switch.fail sw Exit
   with Exit -> ()
 
+let test_https_public_smoke () =
+  require_network ();
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  let net = Eio.Stdenv.net env in
+  Eio.Switch.run @@ fun sw ->
+  let client = Choku.Client.create ~net () in
+  let request =
+    request_ok ~meth:Choku.Method.GET ~url:"https://example.com/" ()
+  in
+  match Choku.Client.request ~sw client request with
+  | Error error ->
+      failf "unexpected response error: %a" Choku.Client.Error.pp error
+  | Ok response ->
+      check int "status" 200
+        (Choku.Status.code (Choku.Client.Response.status response))
+
 let () =
   run "client"
     [
       ( "client",
         [
           test_case "request normalizes URL" `Quick test_request_normalizes_url;
+          test_case "request normalizes HTTPS URL" `Quick
+            test_request_normalizes_https_url;
           test_case "request defaults path and port" `Quick
             test_request_defaults_path_and_port;
+          test_case "request defaults HTTPS path and port" `Quick
+            test_request_defaults_https_path_and_port;
           test_case "request omits explicit default port from authority" `Quick
             test_request_omits_explicit_default_port_from_authority;
+          test_case "request omits explicit HTTPS default port from authority"
+            `Quick test_request_omits_explicit_https_default_port_from_authority;
+          test_case "request accepts single-label HTTPS host" `Quick
+            test_request_accepts_single_label_https_host;
           test_case "request rejects unsupported URL and method" `Quick
             test_request_rejects_unsupported_url_and_method;
           test_case "request replaces headers and body" `Quick
@@ -434,6 +525,8 @@ let () =
             test_middleware_order_and_response_replacement;
           test_case "create rejects invalid limits" `Quick
             test_create_rejects_invalid_limits;
+          test_case "TLS CA file rejects empty file" `Quick
+            test_tls_ca_file_rejects_empty_file;
           test_case "request wire and fixed response" `Quick
             test_request_wire_and_fixed_response;
           test_case "chunked response skips informational" `Quick
@@ -456,5 +549,6 @@ let () =
             test_rejects_non_buffered_request_body;
           test_case "repeated requests under one switch" `Quick
             test_repeated_requests_under_one_switch;
+          test_case "HTTPS public smoke" `Quick test_https_public_smoke;
         ] );
     ]

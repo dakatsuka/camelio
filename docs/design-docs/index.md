@@ -7,6 +7,7 @@ This directory is the source of truth for Choku's technical design.
 - [Core Beliefs](core-beliefs.md)
 - [Future Work](future-work.md)
 - [Generic Pre-Body Selector](generic-pre-body-selector.md)
+- [HTTPS Client](https-client.md)
 - [HTTP Request Limits And Timeouts](http-request-limits-and-timeouts.md)
 - [HTTP Server Baseline And Client Readiness](http-server-baseline-and-client-readiness.md)
 - [HTTP/1.1 Chunked Request Bodies](http1-chunked-request-bodies.md)

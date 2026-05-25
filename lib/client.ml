@@ -1,5 +1,7 @@
 [@@@alert "-internal"]
 
+module Tls_stack = Tls
+
 module Error = struct
   type t =
     | Invalid_url of string
@@ -14,6 +16,8 @@ module Error = struct
     | Request_body_not_buffered
     | Unsupported_method of Method.t
     | Unsupported_upgrade
+    | Tls_configuration_failed of string
+    | Tls_handshake_failed of exn
 
   let pp fmt = function
     | Invalid_url reason -> Format.fprintf fmt "invalid URL: %s" reason
@@ -38,6 +42,10 @@ module Error = struct
     | Unsupported_method meth ->
         Format.fprintf fmt "unsupported method: %a" Method.pp meth
     | Unsupported_upgrade -> Format.pp_print_string fmt "unsupported upgrade"
+    | Tls_configuration_failed reason ->
+        Format.fprintf fmt "TLS configuration failed: %s" reason
+    | Tls_handshake_failed exn ->
+        Format.fprintf fmt "TLS handshake failed: %s" (Printexc.to_string exn)
 
   let equal a b =
     match (a, b) with
@@ -54,6 +62,9 @@ module Error = struct
     | Request_body_not_buffered, Request_body_not_buffered -> true
     | Unsupported_method a, Unsupported_method b -> Method.equal a b
     | Unsupported_upgrade, Unsupported_upgrade -> true
+    | Tls_configuration_failed a, Tls_configuration_failed b -> String.equal a b
+    | Tls_handshake_failed a, Tls_handshake_failed b ->
+        String.equal (Printexc.to_string a) (Printexc.to_string b)
     | _ -> false
 end
 
@@ -67,7 +78,10 @@ let has_forbidden_url_byte s =
 let contains s char = String.contains s char
 
 module Request = struct
+  type scheme = Http | Https
+
   type t = {
+    scheme : scheme;
     meth : Method.t;
     url : string;
     authority : string;
@@ -117,7 +131,57 @@ module Request = struct
       | _ -> Error (Error.Invalid_url "invalid port")
       | exception Failure _ -> Error (Error.Invalid_url "invalid port")
 
-  let parse_authority authority =
+  let default_port = function Http -> 80 | Https -> 443
+
+  let scheme_of_string = function
+    | "http" -> Ok Http
+    | "https" -> Ok Https
+    | scheme -> Error (Error.Unsupported_scheme scheme)
+
+  let is_ipv4_literal host =
+    match String.split_on_char '.' host with
+    | [ a; b; c; d ] ->
+        let valid_octet value =
+          String.length value > 0
+          && String.for_all is_digit value
+          &&
+          match int_of_string value with
+          | octet -> octet >= 0 && octet <= 255
+          | exception Failure _ -> false
+        in
+        List.for_all valid_octet [ a; b; c; d ]
+    | _ -> false
+
+  let is_numeric_address_literal host =
+    if String.length host = 0 || String.contains host '.' then false
+    else if
+      String.length host > 2
+      && Char.equal host.[0] '0'
+      && (Char.equal host.[1] 'x' || Char.equal host.[1] 'X')
+    then
+      let hex = String.sub host 2 (String.length host - 2) in
+      String.length hex > 0
+      && String.for_all
+           (function
+             | '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' -> true | _ -> false)
+           hex
+    else String.for_all is_digit host
+
+  let validate_https_host host =
+    if is_ipv4_literal host || is_numeric_address_literal host then
+      Error (Error.Invalid_url "https IP literal not supported")
+    else
+      match Domain_name.of_string host with
+      | Error _ -> Error (Error.Invalid_url "invalid HTTPS host")
+      | Ok domain -> (
+          match Domain_name.host domain with
+          | Ok _ -> Ok ()
+          | Error _ -> Error (Error.Invalid_url "invalid HTTPS host"))
+
+  let validate_host scheme host =
+    match scheme with Http -> Ok () | Https -> validate_https_host host
+
+  let parse_authority scheme authority =
     if String.length authority = 0 then Error (Error.Invalid_url "missing host")
     else if contains authority '@' then
       Error (Error.Invalid_url "userinfo not allowed")
@@ -125,18 +189,24 @@ module Request = struct
       Error (Error.Invalid_url "IPv6 literal not supported")
     else
       match String.split_on_char ':' authority with
-      | [ host ] ->
+      | [ host ] -> (
           if String.length host = 0 then
             Error (Error.Invalid_url "missing host")
-          else Ok (host, 80, host)
+          else
+            match validate_host scheme host with
+            | Error _ as error -> error
+            | Ok () -> Ok (host, default_port scheme, host))
       | [ host; port ] -> (
           if String.length host = 0 then
             Error (Error.Invalid_url "missing host")
           else
-            match parse_port port with
-            | Error _ as error -> error
-            | Ok port ->
-                let authority = if port = 80 then host else authority in
+            match (validate_host scheme host, parse_port port) with
+            | (Error _ as error), _ -> error
+            | _, (Error _ as error) -> error
+            | Ok (), Ok port ->
+                let authority =
+                  if port = default_port scheme then host else authority
+                in
                 Ok (host, port, authority))
       | _ -> Error (Error.Invalid_url "invalid authority")
 
@@ -156,28 +226,30 @@ module Request = struct
       match split_scheme url with
       | Error _ as error -> error
       | Ok (scheme, rest) -> (
-          if not (String.equal scheme "http") then
-            Error (Error.Unsupported_scheme scheme)
-          else
-            let authority, target_part = split_authority rest in
-            match parse_authority authority with
-            | Error _ as error -> error
-            | Ok (host, port, authority) -> (
-                match normalize_target target_part with
-                | Error _ as error -> error
-                | Ok target ->
-                    Ok
-                      {
-                        meth;
-                        url;
-                        authority;
-                        host;
-                        port;
-                        target;
-                        headers;
-                        body;
-                      }))
+          match scheme_of_string scheme with
+          | Error _ as error -> error
+          | Ok scheme -> (
+              let authority, target_part = split_authority rest in
+              match parse_authority scheme authority with
+              | Error _ as error -> error
+              | Ok (host, port, authority) -> (
+                  match normalize_target target_part with
+                  | Error _ as error -> error
+                  | Ok target ->
+                      Ok
+                        {
+                          scheme;
+                          meth;
+                          url;
+                          authority;
+                          host;
+                          port;
+                          target;
+                          headers;
+                          body;
+                        })))
 
+  let scheme t = t.scheme
   let meth t = t.meth
   let url t = t.url
   let authority t = t.authority
@@ -219,6 +291,62 @@ module Middleware = struct
     List.fold_right
       (fun middleware wrapped -> middleware wrapped)
       middlewares handler
+end
+
+module Tls = struct
+  type t = { authenticator : X509.Authenticator.t }
+
+  let configuration_error = function
+    | `Msg message -> Error (Error.Tls_configuration_failed message)
+
+  let of_authenticator authenticator = Ok { authenticator }
+
+  let system () =
+    match Ca_certs.authenticator () with
+    | Ok authenticator -> of_authenticator authenticator
+    | Error error -> configuration_error error
+
+  let authenticator_of_certificates certificates =
+    if certificates = [] then
+      Error (Error.Tls_configuration_failed "no CA certificates found")
+    else
+      let authenticator =
+        X509.Authenticator.chain_of_trust
+          ~time:(fun () -> Some (Ptime_clock.now ()))
+          certificates
+      in
+      of_authenticator authenticator
+
+  let ca_file path =
+    match X509.Certificate.decode_pem_multiple (Eio.Path.load path) with
+    | Ok certificates -> authenticator_of_certificates certificates
+    | Error error -> configuration_error error
+    | exception (Eio.Cancel.Cancelled _ as exn) -> raise exn
+    | exception exn ->
+        Error
+          (Error.Tls_configuration_failed
+             (Format.asprintf "failed to load CA file: %s"
+                (Printexc.to_string exn)))
+
+  let ca_dir path =
+    try
+      let ( / ) = Eio.Path.( / ) in
+      let names = Eio.Path.read_dir path in
+      let contents =
+        names
+        |> List.map (fun name -> Eio.Path.load (path / name))
+        |> String.concat "\n"
+      in
+      match X509.Certificate.decode_pem_multiple contents with
+      | Ok certificates -> authenticator_of_certificates certificates
+      | Error error -> configuration_error error
+    with
+    | Eio.Cancel.Cancelled _ as exn -> raise exn
+    | exn ->
+        Error
+          (Error.Tls_configuration_failed
+             (Format.asprintf "failed to load CA directory: %s"
+                (Printexc.to_string exn)))
 end
 
 type t = { call : sw:Eio.Switch.t -> Handler.t }
@@ -525,7 +653,39 @@ let connect_first ~sw net host port =
       in
       loop None addrs
 
-let transport ~sw ~net ~max_response_head_size ~max_response_body_size request =
+let tls_host host =
+  match Domain_name.of_string host with
+  | Error (`Msg message) -> Error (Error.Tls_configuration_failed message)
+  | Ok domain -> (
+      match Domain_name.host domain with
+      | Error (`Msg message) -> Error (Error.Tls_configuration_failed message)
+      | Ok host -> Ok host)
+
+let tls_client_config tls host =
+  match tls_host host with
+  | Error _ as error -> error
+  | Ok peer_name -> (
+      match
+        Tls_stack.Config.client ~authenticator:tls.Tls.authenticator ~peer_name
+          ~version:(`TLS_1_2, `TLS_1_3) ()
+      with
+      | Error (`Msg message) -> Error (Error.Tls_configuration_failed message)
+      | Ok config -> Ok (config, peer_name))
+
+let tls_flow tls flow host =
+  match tls_client_config tls host with
+  | Error _ as error -> error
+  | Ok (config, host) -> (
+      try
+        Ok
+          (Tls_eio.client_of_flow config ~host flow
+            :> Eio.Flow.two_way_ty Eio.Resource.t)
+      with
+      | Eio.Cancel.Cancelled _ as exn -> raise exn
+      | exn -> Error (Error.Tls_handshake_failed exn))
+
+let transport ~sw ~net ~tls ~max_response_head_size ~max_response_body_size
+    request =
   if not (Body.is_buffered (Request.body request)) then
     Error Error.Request_body_not_buffered
   else
@@ -534,32 +694,50 @@ let transport ~sw ~net ~max_response_head_size ~max_response_body_size request =
     with
     | Error _ as error -> error
     | Ok flow ->
+        let active_flow = ref None in
         Fun.protect
           ~finally:(fun () ->
+            Option.iter
+              (fun flow -> try Eio.Flow.shutdown flow `All with _ -> ())
+              !active_flow;
             (try Eio.Flow.shutdown flow `All with _ -> ());
             try Eio.Flow.close flow with _ -> ())
           (fun () ->
             try
-              let body = Body.to_string (Request.body request) in
-              Eio.Flow.copy_string (request_wire request body) flow;
-              let reader = reader flow in
-              read_final_response ~max_response_head_size
-                ~max_response_body_size request reader
+              let flow =
+                match Request.scheme request with
+                | Http -> Ok (flow :> Eio.Flow.two_way_ty Eio.Resource.t)
+                | Https -> (
+                    match tls with
+                    | Error _ as error -> error
+                    | Ok tls -> tls_flow tls flow (Request.host request))
+              in
+              match flow with
+              | Error _ as error -> error
+              | Ok flow ->
+                  active_flow := Some flow;
+                  let body = Body.to_string (Request.body request) in
+                  Eio.Flow.copy_string (request_wire request body) flow;
+                  let reader = reader flow in
+                  read_final_response ~max_response_head_size
+                    ~max_response_body_size request reader
             with
             | Eio.Cancel.Cancelled _ as exn -> raise exn
             | exn -> Error (Error.Connection_failed exn))
 
-let create ?(max_response_head_size = default_max_response_head_size)
+let create ?tls ?(max_response_head_size = default_max_response_head_size)
     ?(max_response_body_size = default_max_response_body_size)
     ?(middlewares = []) ~net () =
   if max_response_head_size <= 0 then invalid_arg "max_response_head_size <= 0";
   if max_response_body_size < 0 then invalid_arg "max_response_body_size < 0";
+  let tls = match tls with Some tls -> Ok tls | None -> Tls.system () in
   let middleware = Middleware.apply middlewares in
   {
     call =
       (fun ~sw ->
         middleware
-          (transport ~sw ~net ~max_response_head_size ~max_response_body_size));
+          (transport ~sw ~net ~tls ~max_response_head_size
+             ~max_response_body_size));
   }
 
 let request ~sw t request = t.call ~sw request

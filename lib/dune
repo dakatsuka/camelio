@@ -2,4 +2,4 @@
  (name choku)
  (public_name choku)
  (private_modules http1_chunked http1_wire request_target)
- (libraries eio))
+ (libraries eio tls tls-eio ca-certs x509 domain-name ptime.clock.os))
