@@ -9,6 +9,9 @@ module Params = struct
         if String.equal name param_name then Some value else None)
       t
 
+  let get_or ~default name t =
+    match get name t with Some value -> value | None -> default
+
   let to_list t = t
 end
 

@@ -89,7 +89,7 @@ let page request =
   let open Choku in
   match Query.of_request request with
   | Ok query ->
-      let value = query |> Query.get "page" |> Option.value ~default:"1" in
+      let value = Query.get_or ~default:"1" "page" query in
       Response.text (Printf.sprintf "page %s\n" value)
   | Error error ->
       Response.text ~status:Status.bad_request

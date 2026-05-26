@@ -23,6 +23,12 @@ let test_decode_fields () =
 let test_accessors_preserve_repeated_fields () =
   let query = query_of_string "tag=ocaml&tag=eio&empty=" in
   check (option string) "first tag" (Some "ocaml") (Choku.Query.get "tag" query);
+  check string "tag default" "ocaml"
+    (Choku.Query.get_or ~default:"missing" "tag" query);
+  check string "empty value default" ""
+    (Choku.Query.get_or ~default:"missing" "empty" query);
+  check string "missing default" "missing"
+    (Choku.Query.get_or ~default:"missing" "missing" query);
   check (list string) "all tags" [ "ocaml"; "eio" ]
     (Choku.Query.get_all "tag" query);
   check (option string) "missing" None (Choku.Query.get "missing" query);

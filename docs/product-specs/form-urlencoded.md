@@ -45,6 +45,9 @@ without committing multipart upload behavior to the same API.
 - A field without `=` has an empty value.
 - Empty field names and values are preserved.
 - Repeated fields are preserved in insertion order.
+- `Form.get_or ~default name form` returns the first value for `name` when
+  present, even when that value is the empty string. It returns `default` only
+  when `name` is absent.
 
 ## Public Contracts
 
@@ -63,6 +66,7 @@ module Form : sig
   val decode : string -> (t, error) result
   val of_request : Request.t -> (t, error) result
   val get : string -> t -> string option
+  val get_or : default:string -> string -> t -> string
   val get_all : string -> t -> string list
   val to_list : t -> (string * string) list
   val pp_error : Format.formatter -> error -> unit
@@ -77,8 +81,11 @@ Public `.mli` files must document these contracts with block comments.
 match Choku.Form.of_request request with
 | Ok form -> (
     match Choku.Form.get "email" form with
-    | Some email -> Choku.Response.text ("email=" ^ email ^ "\n")
-    | None -> Choku.Response.text ~status:Choku.Status.bad_request "missing email\n")
+    | Some email ->
+        let nickname = Choku.Form.get_or ~default:email "nickname" form in
+        Choku.Response.text ("nickname=" ^ nickname ^ "\n")
+    | None ->
+        Choku.Response.text ~status:Choku.Status.bad_request "missing email\n")
 | Error error ->
     Choku.Response.text ~status:Choku.Status.bad_request
       (Format.asprintf "%a\n" Choku.Form.pp_error error)

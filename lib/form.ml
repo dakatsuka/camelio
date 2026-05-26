@@ -13,6 +13,9 @@ let get name t =
       if String.equal name field_name then Some value else None)
     t
 
+let get_or ~default name t =
+  match get name t with Some value -> value | None -> default
+
 let get_all name t =
   List.filter_map
     (fun (field_name, value) ->

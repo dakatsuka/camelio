@@ -117,6 +117,7 @@ module Router : sig
 
     val empty : t
     val get : string -> t -> string option
+    val get_or : default:string -> string -> t -> string
     val to_list : t -> (string * string) list
   end
 
@@ -153,7 +154,8 @@ corresponding `Method.t` constructor.
 
 `Router.Params.to_list` preserves the pattern order of captured parameters.
 `Router.Params.get` returns the first value for a name, though duplicate names
-are rejected at pattern compile time.
+are rejected at pattern compile time. `Router.Params.get_or` returns the first
+value or a caller-provided default when a parameter is absent.
 
 ## Alternatives Considered
 

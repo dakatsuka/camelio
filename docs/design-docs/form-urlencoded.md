@@ -31,11 +31,16 @@ and streaming APIs.
 ## Proposed Design
 
 `Form.t` is an abstract ordered multimap represented internally as a
-`(string * string) list`. Accessors mirror `Headers` and `Router.Params`:
+`(string * string) list`. Accessors follow the same lookup style as other
+ordered collections in Choku:
 
 - `get` returns the first matching value;
+- `get_or` returns the first matching value or a caller-provided default;
 - `get_all` returns all matching values in insertion order;
 - `to_list` returns every pair in insertion order.
+
+`get_or` treats an empty present value as present; it returns the default only
+when the field is absent.
 
 `Form.decode body` parses raw URL-encoded bytes. It splits entries on `&`, then
 splits each entry at the first `=`. Missing `=` means an empty value. Both field
@@ -79,6 +84,7 @@ module Form : sig
   val decode : string -> (t, error) result
   val of_request : Request.t -> (t, error) result
   val get : string -> t -> string option
+  val get_or : default:string -> string -> t -> string
   val get_all : string -> t -> string list
   val to_list : t -> (string * string) list
   val pp_error : Format.formatter -> error -> unit

@@ -126,6 +126,18 @@ let test_params_to_list_preserves_pattern_order () =
   in
   check string "body" "ok" (response_body (call router "/one/two"))
 
+let test_params_get_or () =
+  let router =
+    Choku.Router.empty
+    |> Choku.Router.get "/:first/:second" (fun params _request ->
+        check string "first" "one"
+          (Choku.Router.Params.get_or ~default:"missing" "first" params);
+        check string "missing" "missing"
+          (Choku.Router.Params.get_or ~default:"missing" "third" params);
+        Choku.Response.text "ok")
+  in
+  check string "body" "ok" (response_body (call router "/one/two"))
+
 let test_query_string_is_ignored () =
   let router = Choku.Router.empty |> Choku.Router.get "/search" (text "ok") in
   check string "body" "ok" (response_body (call router "/search?q=choku"))
@@ -318,6 +330,7 @@ let () =
           test_case "parameter capture" `Quick test_parameter_capture;
           test_case "params to_list preserves order" `Quick
             test_params_to_list_preserves_pattern_order;
+          test_case "params get_or" `Quick test_params_get_or;
           test_case "query string is ignored" `Quick
             test_query_string_is_ignored;
           test_case "HEAD fallback ignores query string" `Quick

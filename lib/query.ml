@@ -9,6 +9,9 @@ let get name t =
       if String.equal name param_name then Some value else None)
     t
 
+let get_or ~default name t =
+  match get name t with Some value -> value | None -> default
+
 let get_all name t =
   List.filter_map
     (fun (param_name, value) ->

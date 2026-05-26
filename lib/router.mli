@@ -13,6 +13,10 @@ module Params : sig
   val get : string -> t -> string option
   (** [get name t] returns the first captured value for [name], if present. *)
 
+  val get_or : default:string -> string -> t -> string
+  (** [get_or ~default name t] returns the first captured value for [name], or
+      [default] if [name] is absent. *)
+
   val to_list : t -> (string * string) list
   (** [to_list t] returns captured parameters in route-pattern order. *)
 end

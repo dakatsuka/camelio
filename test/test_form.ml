@@ -30,15 +30,21 @@ let test_percent_decoding () =
 
 let test_repeated_fields_preserve_order () =
   let form =
-    match Choku.Form.decode "tag=ocaml&tag=eio&single=one" with
+    match Choku.Form.decode "tag=ocaml&tag=eio&single=one&empty=" with
     | Ok form -> form
     | Error _ -> fail "expected form"
   in
   check (option string) "first tag" (Some "ocaml") (Choku.Form.get "tag" form);
+  check string "tag default" "ocaml"
+    (Choku.Form.get_or ~default:"missing" "tag" form);
+  check string "empty value default" ""
+    (Choku.Form.get_or ~default:"missing" "empty" form);
+  check string "missing default" "missing"
+    (Choku.Form.get_or ~default:"missing" "missing" form);
   check (list string) "all tags" [ "ocaml"; "eio" ]
     (Choku.Form.get_all "tag" form);
   check form_fields "ordered fields"
-    [ ("tag", "ocaml"); ("tag", "eio"); ("single", "one") ]
+    [ ("tag", "ocaml"); ("tag", "eio"); ("single", "one"); ("empty", "") ]
     (Choku.Form.to_list form)
 
 let test_empty_names_values_and_missing_equals () =

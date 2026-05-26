@@ -56,6 +56,9 @@ request-target representation or exposing a third-party URI type.
 - Repeated parameters are preserved in insertion order.
 - Parameter names and values decode `+` as space and decode percent-encoded
   bytes.
+- `Query.get_or ~default name query` returns the first value for `name` when
+  present, even when that value is the empty string. It returns `default` only
+  when `name` is absent.
 - Character encoding is not validated or transcoded. Decoded query names and
   values may contain bytes such as spaces or controls that are rejected in the
   raw request target unless percent-encoded.
@@ -75,6 +78,7 @@ module Query : sig
   val decode : string -> (t, error) result
   val of_request : Request.t -> (t, error) result
   val get : string -> t -> string option
+  val get_or : default:string -> string -> t -> string
   val get_all : string -> t -> string list
   val to_list : t -> (string * string) list
   val pp_error : Format.formatter -> error -> unit
@@ -95,10 +99,9 @@ Public `.mli` files must document these contracts with block comments.
 
 ```ocaml
 match Choku.Query.of_request request with
-| Ok query -> (
-    match Choku.Query.get "page" query with
-    | Some page -> Choku.Response.text ("page=" ^ page ^ "\n")
-    | None -> Choku.Response.text "page=1\n")
+| Ok query ->
+    let page = Choku.Query.get_or ~default:"1" "page" query in
+    Choku.Response.text ("page=" ^ page ^ "\n")
 | Error error ->
     Choku.Response.text ~status:Choku.Status.bad_request
       (Format.asprintf "%a\n" Choku.Query.pp_error error)

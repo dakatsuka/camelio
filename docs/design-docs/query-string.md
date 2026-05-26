@@ -54,8 +54,12 @@ mode selection depends on raw query presence or value.
 `(string * string) list`. Its accessors mirror `Form`:
 
 - `get` returns the first matching value;
+- `get_or` returns the first matching value or a caller-provided default;
 - `get_all` returns all values in insertion order;
 - `to_list` returns every pair in insertion order.
+
+`get_or` treats an empty present value as present; it returns the default only
+when the parameter is absent.
 
 `Query.decode raw_query` parses the raw query component without a leading `?`.
 It uses the same URL-encoded field parser as `Form.decode`: entries are split
@@ -93,6 +97,7 @@ module Query : sig
   val decode : string -> (t, error) result
   val of_request : Request.t -> (t, error) result
   val get : string -> t -> string option
+  val get_or : default:string -> string -> t -> string
   val get_all : string -> t -> string list
   val to_list : t -> (string * string) list
   val pp_error : Format.formatter -> error -> unit

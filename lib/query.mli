@@ -29,6 +29,12 @@ val of_request : Request.t -> (t, error) result
 val get : string -> t -> string option
 (** [get name t] returns the first value for [name], if present. *)
 
+val get_or : default:string -> string -> t -> string
+(** [get_or ~default name t] returns the first value for [name], or [default] if
+    [name] is absent.
+
+    Empty values are returned as present values. *)
+
 val get_all : string -> t -> string list
 (** [get_all name t] returns all values for [name] in insertion order. *)
 
