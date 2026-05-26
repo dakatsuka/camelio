@@ -62,6 +62,7 @@ module Cookie : sig
 
   val get : string -> Request.t -> string option
   val get_all : string -> Request.t -> string list
+  val get_unique : string -> Request.t -> string option
 
   val set :
     ?path:string ->
@@ -89,6 +90,12 @@ end
 `Cookie.get_all name request` reads `Headers.get_all "cookie"` from the
 request. It processes header values in insertion order. Each header value is
 split on `;`; each pair is trimmed for ASCII space and tab on both sides.
+
+`Cookie.get name request` returns the first matching value. This is a
+convenience for non-sensitive cookies where first-value semantics are
+acceptable. Security-sensitive cookies such as authentication or session
+cookies should use `Cookie.get_unique` or explicit `Cookie.get_all` duplicate
+handling so duplicate names are rejected instead of silently choosing one.
 
 Parsing rules:
 
@@ -153,6 +160,8 @@ an empty value, `Max-Age=0`, and
 - `Response.add_header` appends; `Response.with_header` replaces.
 - `Cookie.get` is `List.hd`-like over `Cookie.get_all` but returns `None` when
   no matching cookie exists.
+- `Cookie.get_unique` returns `Some value` only when exactly one matching cookie
+  exists.
 - `Cookie.get_all` never raises for malformed request cookie syntax.
 - `Cookie.set` and `Cookie.delete` may raise `Invalid_argument` for invalid
   names or unsafe response cookie values/attributes.
@@ -188,6 +197,17 @@ The design now uses `No_restriction` for `SameSite=None`, requires
 `Expires` on deletion, ignores request cookie pairs whose names are not valid
 HTTP tokens, documents `Domain` and `Path` validation scope, and includes export
 coverage in validation. Re-review passed.
+
+Follow-up security review found two issues:
+
+- `Cookie.get` first-value semantics are risky for authentication or session
+  cookies when duplicate cookie names appear;
+- examples and public documentation should more strongly guide sensitive
+  cookies toward `Secure`, `HttpOnly`, and explicit `SameSite`.
+
+The follow-up adds `Cookie.get_unique`, documents duplicate-cookie risk, and
+updates examples and interface guidance to prefer secure attributes for
+authentication and session cookies.
 
 ## Validation
 

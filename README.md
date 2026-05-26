@@ -102,9 +102,10 @@ headers:
 ```ocaml
 let remember request =
   let open Choku in
-  let name = Option.value ~default:"guest" (Cookie.get "name" request) in
+  let name = Option.value ~default:"guest" (Cookie.get_unique "name" request) in
   Response.text (Printf.sprintf "hello %s\n" name)
-  |> Cookie.set ~path:"/" ~http_only:true ~same_site:Cookie.Lax "seen" "1"
+  |> Cookie.set ~path:"/" ~secure:true ~http_only:true ~same_site:Cookie.Lax
+       "seen" "1"
 ```
 
 Use the router when you want path parameters and first-match routing:

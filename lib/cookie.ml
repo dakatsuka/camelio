@@ -42,6 +42,11 @@ let get_all name request =
 let get name request =
   match get_all name request with [] -> None | v :: _ -> Some v
 
+let get_unique name request =
+  match get_all name request with
+  | [ value ] -> Some value
+  | [] | _ :: _ :: _ -> None
+
 let valid_cookie_value value =
   String.length value = 0
   || String.for_all

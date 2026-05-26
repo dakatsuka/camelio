@@ -23,8 +23,17 @@ let test_get_and_get_all () =
     (Choku.Cookie.get "session" request);
   check (list string) "all sessions" [ "one"; "two" ]
     (Choku.Cookie.get_all "session" request);
+  check (option string) "duplicate not unique" None
+    (Choku.Cookie.get_unique "session" request);
   check (option string) "empty value" (Some "")
     (Choku.Cookie.get "empty" request)
+
+let test_get_unique () =
+  let request = request ~headers:(cookie_headers [ "session=only" ]) () in
+  check (option string) "unique" (Some "only")
+    (Choku.Cookie.get_unique "session" request);
+  check (option string) "missing" None
+    (Choku.Cookie.get_unique "missing" request)
 
 let test_ignores_malformed_pairs () =
   let request =
@@ -113,6 +122,7 @@ let () =
       ( "cookie",
         [
           test_case "get and get_all" `Quick test_get_and_get_all;
+          test_case "get_unique" `Quick test_get_unique;
           test_case "ignores malformed pairs" `Quick
             test_ignores_malformed_pairs;
           test_case "lookup is case-sensitive" `Quick

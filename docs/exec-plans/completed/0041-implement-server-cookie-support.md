@@ -30,6 +30,7 @@ the accepted server cookie support draft.
 - Add `Response.add_header`.
 - Add `Cookie.same_site`.
 - Add `Cookie.get` and `Cookie.get_all`.
+- Add `Cookie.get_unique`.
 - Add `Cookie.set` and `Cookie.delete`.
 - Export `Choku.Cookie`.
 
@@ -55,6 +56,8 @@ the accepted server cookie support draft.
   storage acceptance.
 - Add an HTTP/1 serialization regression so repeated `Set-Cookie` values are
   proven to leave Choku as separate header fields.
+- Add `Cookie.get_unique` after security review flagged first-value cookie
+  lookup as risky for authentication or session cookies with duplicate names.
 
 ## Verification
 
@@ -77,6 +80,11 @@ helpers.
 Code review found no functional cookie helper bugs. It requested wire-level
 `Set-Cookie` serialization coverage and plan/design bookkeeping updates; both
 were addressed and re-reviewed.
+
+Security review found that `Cookie.get` first-value semantics can be unsafe for
+authentication or session cookies when duplicate cookie names are present, and
+that examples should more strongly show secure cookie attributes. Added
+`Cookie.get_unique`, tests, and documentation updates for those concerns.
 
 ## Commit
 

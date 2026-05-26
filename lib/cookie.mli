@@ -20,6 +20,17 @@ val get_all : string -> Request.t -> string list
     Cookie names are case-sensitive. Malformed cookie pairs in the request are
     ignored. *)
 
+val get_unique : string -> Request.t -> string option
+(** [get_unique name request] returns [Some value] when exactly one cookie named
+    [name] is present, and [None] when no matching cookie or multiple matching
+    cookies are present.
+
+    Prefer [get_unique] or explicit [get_all] duplicate handling for
+    security-sensitive cookies such as authentication or session cookies.
+    Duplicate cookie names can appear in cookie tossing and session fixation
+    scenarios, so [get] should be used for such cookies only when first-value
+    semantics are intentional. *)
+
 val set :
   ?path:string ->
   ?domain:string ->
@@ -36,6 +47,9 @@ val set :
 
     [same_site:No_restriction] serializes as [SameSite=None] and requires
     [secure:true].
+
+    Authentication and session cookies should generally set [secure:true],
+    [http_only:true], and an explicit [same_site] value.
 
     @raise Invalid_argument
       if [name], [value], or an attribute value cannot be safely serialized. *)

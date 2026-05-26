@@ -47,6 +47,12 @@ fields through `Headers.set`.
   the request's `Cookie` headers.
 - `Cookie.get_all name request` returns all cookie values named `name` in
   request header order and cookie-pair order.
+- `Cookie.get_unique name request` returns a value only when exactly one cookie
+  named `name` is present.
+- Security-sensitive cookies such as authentication or session cookies should
+  use `Cookie.get_unique` or explicit `Cookie.get_all` duplicate handling,
+  because duplicate names can appear in cookie tossing and session fixation
+  scenarios.
 - Cookie lookup is case-sensitive.
 - Request cookie parsing reads all `Cookie` headers from `Request.headers`.
 - Request cookie parsing splits header values on `;`, trims optional spaces and
@@ -94,6 +100,7 @@ module Cookie : sig
 
   val get : string -> Request.t -> string option
   val get_all : string -> Request.t -> string list
+  val get_unique : string -> Request.t -> string option
 
   val set :
     ?path:string ->
@@ -122,13 +129,14 @@ Public `.mli` files must document these contracts with block comments.
 
 ```ocaml
 let handler request =
-  match Choku.Cookie.get "user_id" request with
+  match Choku.Cookie.get_unique "user_id" request with
   | None ->
-      Choku.Response.text ~status:Choku.Status.unauthorized "missing cookie\n"
+      Choku.Response.text ~status:Choku.Status.unauthorized
+        "missing or ambiguous cookie\n"
   | Some user_id ->
       Choku.Response.text ("hello " ^ user_id ^ "\n")
-      |> Choku.Cookie.set ~path:"/" ~http_only:true ~same_site:Choku.Cookie.Lax
-           "seen" "1"
+      |> Choku.Cookie.set ~path:"/" ~secure:true ~http_only:true
+           ~same_site:Choku.Cookie.Lax "seen" "1"
 ```
 
 Set multiple cookies:
