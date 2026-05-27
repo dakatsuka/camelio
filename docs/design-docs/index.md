@@ -4,6 +4,7 @@ This directory is the source of truth for Choku's technical design.
 
 ## Current Documents
 
+- [Access Log Middleware](access-log.md)
 - [Core Beliefs](core-beliefs.md)
 - [Future Work](future-work.md)
 - [Generic Pre-Body Selector](generic-pre-body-selector.md)

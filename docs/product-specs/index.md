@@ -4,6 +4,7 @@ Product specs define externally visible behavior and user expectations.
 
 ## Current Specs
 
+- [Access Log Middleware](access-log.md)
 - [Minimal HTTP/1.1 Server Milestone](minimal-http1-server.md)
 - [Minimal HTTP Client](minimal-http-client.md)
 - [Generic Pre-Body Selector](generic-pre-body-selector.md)
