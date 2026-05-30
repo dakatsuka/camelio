@@ -50,11 +50,10 @@ without Choku choosing a validation model.
   Route compilation continues to reject duplicate parameter names in one route
   pattern, but the adapter surface should still mirror the multimap modules
   where practical.
-- A small follow-up API should add `Router.Params.get_all : string -> t ->
-  string list`, returning either a singleton list or an empty list under the
-  current duplicate-name rejection rule. That follow-up must also document
-  duplicate parameter-name rejection in `Router`'s public interface and cover it
-  with regression tests.
+- `Router.Params.get_all : string -> t -> string list` returns either a
+  singleton list or an empty list under the current duplicate-name rejection
+  rule. `Router`'s public interface documents duplicate parameter-name
+  rejection, and regression tests cover that behavior.
 - `to_list` remains the stable bulk-export surface for third-party decoders
   that prefer a list of name/value pairs.
 - `get_all` remains the stable per-field surface for third-party decoders that
@@ -118,15 +117,8 @@ module Router.Params : sig
 
   val get : string -> t -> string option
   val get_or : default:string -> string -> t -> string
-  val to_list : t -> (string * string) list
-end
-```
-
-A small compatibility follow-up should extend `Router.Params`:
-
-```ocaml
-module Router.Params : sig
   val get_all : string -> t -> string list
+  val to_list : t -> (string * string) list
 end
 ```
 
@@ -294,8 +286,7 @@ let route_fields (ctx : Choku.Router.Context.t) =
   Choku.Router.Params.to_list ctx.params
 ```
 
-After the `Router.Params.get_all` follow-up, adapters that prefer per-field
-lookup can use the same shape for each source:
+Adapters that prefer per-field lookup can use the same shape for each source:
 
 ```ocaml
 module type Field_lookup = sig
@@ -315,5 +306,5 @@ None.
   third-party validator integrations.
 - `Router.Params`, `Query`, and `Form` remain separate source-specific
   collections with similar accessor shapes.
-- `Router.Params.get_all` is worth adding as a small symmetry helper. It must
-  not change route matching or relax duplicate parameter-name rejection.
+- `Router.Params.get_all` is a small symmetry helper. It does not change route
+  matching or relax duplicate parameter-name rejection.

@@ -125,6 +125,7 @@ module Router : sig
     val empty : t
     val get : string -> t -> string option
     val get_or : default:string -> string -> t -> string
+    val get_all : string -> t -> string list
     val to_list : t -> (string * string) list
   end
 
@@ -180,7 +181,9 @@ constructs context values. `Router.Params.to_list` preserves the pattern order
 of captured parameters. `Router.Params.get` returns the first value for a name,
 though duplicate names are rejected at pattern compile time.
 `Router.Params.get_or` returns the first value or a caller-provided default when
-a parameter is absent.
+a parameter is absent. `Router.Params.get_all` returns the captured value as a
+singleton list or an empty list when absent; it does not relax duplicate
+parameter-name rejection.
 
 This is a breaking migration from two-argument route handlers. Existing handlers
 of the form `fun params request -> ...` should become `fun ctx -> ...`, with

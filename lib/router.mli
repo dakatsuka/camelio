@@ -17,6 +17,13 @@ module Params : sig
   (** [get_or ~default name t] returns the first captured value for [name], or
       [default] if [name] is absent. *)
 
+  val get_all : string -> t -> string list
+  (** [get_all name t] returns the captured value for [name] as a singleton
+      list, or [[]] if [name] is absent.
+
+      Route patterns reject duplicate parameter names, so a matched route can
+      contain at most one value for a parameter name. *)
+
   val to_list : t -> (string * string) list
   (** [to_list t] returns captured parameters in route-pattern order. *)
 end
@@ -54,6 +61,7 @@ val route :
     Patterns are ["/"] or slash-prefixed non-empty segments. Segments beginning
     with [':'] capture one non-empty path segment using a parameter name made of
     ASCII letters, digits, [_], and [-], with an ASCII letter or [_] first.
+    Duplicate parameter names in one pattern are invalid.
 
     [request_body_mode] defaults to [Request_body_mode.Buffered].
 

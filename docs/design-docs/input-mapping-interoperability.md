@@ -82,18 +82,17 @@ body API and then calling `Form.decode`. Manual streaming form adapters must map
 body-read errors separately from `Form.error` and should keep an explicit
 `max_size` policy when using `Body.to_string_limited`.
 
-The one small API gap is `Router.Params.get_all`. `Query` and `Form` expose it
-because repeated values are part of their data model. `Router.Params` rejects
-duplicate names, so `get_all` is not needed for route semantics. It is still
-worth adding as a compatibility helper because it lets generic field adapters
-use the same lookup shape across route, query, and form sources. Under the
-current router contract, `Router.Params.get_all name params` returns `[value]`
-when the route captured `name` and `[]` otherwise.
+`Router.Params.get_all` completes the small accessor-shape symmetry with
+`Query` and `Form`. Query and form expose `get_all` because repeated values are
+part of their data model. `Router.Params` rejects duplicate names, so `get_all`
+is not needed for route semantics, but it lets generic field adapters use the
+same lookup shape across route, query, and form sources. Under the current
+router contract, `Router.Params.get_all name params` returns `[value]` when the
+route captured `name` and `[]` otherwise.
 
-The `Router.Params.get_all` follow-up must also tighten the public router
-documentation and tests around duplicate parameter-name rejection. The new
-helper relies on route params remaining at-most-one per name, so the public
-interface should state that duplicate capture names in one pattern are invalid.
+`Router.Params.get_all` relies on route params remaining at-most-one per name,
+so the public router interface documents duplicate capture names in one pattern
+as invalid and tests cover that rejection.
 
 Examples should show source-specific adapters rather than a merged map:
 
@@ -108,8 +107,8 @@ type http_inputs = {
 Applications or third-party adapters can then decide how to handle repeated
 values, missing values, and precedence.
 
-After the `Router.Params.get_all` follow-up, per-field adapters can also use a
-common lookup signature without introducing a common Choku input type:
+Per-field adapters can use a common lookup signature without introducing a
+common Choku input type:
 
 ```ocaml
 module type Field_lookup = sig
@@ -147,22 +146,14 @@ module Router.Params : sig
 
   val get : string -> t -> string option
   val get_or : default:string -> string -> t -> string
-  val to_list : t -> (string * string) list
-end
-```
-
-Small follow-up contract:
-
-```ocaml
-module Router.Params : sig
   val get_all : string -> t -> string list
+  val to_list : t -> (string * string) list
 end
 ```
 
 `Router.Params.get_all` must be documented as returning at most one value under
 the current route-pattern contract. It must not relax duplicate parameter-name
-rejection. The implementation milestone must update `Router` interface
-documentation to make duplicate capture-name rejection explicit.
+rejection.
 
 ## Security Considerations
 
@@ -218,16 +209,15 @@ Initial context-free design review found four issues:
   imply all source acquisition failures are source-specific `result` errors;
 - product requirements blurred URL-decoded query/form strings with raw route
   capture strings;
-- `Router.Params.get_all` relies on duplicate-name rejection being public
+- `Router.Params.get_all` relies on duplicate-name rejection being a public
   contract;
 - examples justified `to_list` adapters but did not show the uniform
   `get_all` adapter shape.
 
 The design now separates parse errors from request/body availability failures,
-mirrors route/query/form decoding differences in the product spec, requires the
-`Router.Params.get_all` implementation milestone to document and test duplicate
-capture-name rejection, and adds a minimal common `get_all` adapter signature.
-Re-review found no remaining design-boundary issues.
+mirrors route/query/form decoding differences in the product spec, documents
+and tests duplicate capture-name rejection, and adds a minimal common `get_all`
+adapter signature. Re-review found no remaining design-boundary issues.
 
 ## Security Review
 
@@ -262,8 +252,8 @@ This is a design milestone. Validation should include:
 - context-free security review focused on untrusted input, duplicate values,
   source confusion, and unsafe normalization assumptions;
 - documentation checks with `dune build @fmt`;
-- when `Router.Params.get_all` is implemented later, focused tests proving
-  singleton, missing, ordering, and unchanged duplicate-name rejection behavior.
+- focused tests proving `Router.Params.get_all` singleton and missing behavior,
+  plus unchanged duplicate-name rejection behavior.
 
 ## Open Questions
 

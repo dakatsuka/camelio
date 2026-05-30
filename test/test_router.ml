@@ -138,6 +138,18 @@ let test_params_get_or () =
   in
   check string "body" "ok" (response_body (call router "/one/two"))
 
+let test_params_get_all () =
+  let router =
+    Choku.Router.empty
+    |> Choku.Router.get "/:first/:second" (fun ctx ->
+        check (list string) "first" [ "one" ]
+          (Choku.Router.Params.get_all "first" ctx.params);
+        check (list string) "missing" []
+          (Choku.Router.Params.get_all "third" ctx.params);
+        Choku.Response.text "ok")
+  in
+  check string "body" "ok" (response_body (call router "/one/two"))
+
 let test_query_string_is_ignored () =
   let router = Choku.Router.empty |> Choku.Router.get "/search" (text "ok") in
   check string "body" "ok" (response_body (call router "/search?q=choku"))
@@ -309,6 +321,9 @@ let test_invalid_patterns () =
   List.iter check_invalid_pattern
     [ ""; "users"; "/users/"; "/users//posts"; "/:"; "/:1"; "/:-bad"; "/:a/:a" ]
 
+let test_duplicate_parameter_names_are_invalid () =
+  check_invalid_pattern "/users/:id/posts/:id"
+
 let () =
   run "router"
     [
@@ -331,6 +346,7 @@ let () =
           test_case "params to_list preserves order" `Quick
             test_params_to_list_preserves_pattern_order;
           test_case "params get_or" `Quick test_params_get_or;
+          test_case "params get_all" `Quick test_params_get_all;
           test_case "query string is ignored" `Quick
             test_query_string_is_ignored;
           test_case "HEAD fallback ignores query string" `Quick
@@ -364,5 +380,7 @@ let () =
           test_case "internal match route does not invoke handler" `Quick
             test_internal_match_route_does_not_invoke_handler;
           test_case "invalid patterns" `Quick test_invalid_patterns;
+          test_case "duplicate parameter names are invalid" `Quick
+            test_duplicate_parameter_names_are_invalid;
         ] );
     ]

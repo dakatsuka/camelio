@@ -46,6 +46,9 @@ without making routing mandatory for the server.
   extending `Request.t`.
 - `Router.Params.get_or` returns the first captured value or a caller-provided
   default when a parameter is absent.
+- `Router.Params.get_all` returns the captured value for a parameter name as a
+  singleton list, or an empty list when the parameter is absent. Duplicate
+  parameter names in one route pattern remain invalid.
 - Routes may opt into streaming request bodies before the server reads the body
   when the application uses `Server.create_router`. `Router.to_handler`
   behavior remains useful for tests and server-wide body mode users with
@@ -73,6 +76,7 @@ module Router : sig
     val empty : t
     val get : string -> t -> string option
     val get_or : default:string -> string -> t -> string
+    val get_all : string -> t -> string list
     val to_list : t -> (string * string) list
   end
 

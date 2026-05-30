@@ -45,8 +45,8 @@ work should stay within that boundary:
   error types;
 - document examples that compose with third-party validators or typed
   converters;
-- add only tiny helper contracts, such as `Router.Params.get_all`, when they
-  remove integration friction without owning validation policy.
+- add only tiny helper contracts when they remove integration friction without
+  owning validation policy.
 
 ### Router Follow-Up Features
 
