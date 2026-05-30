@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft
+Accepted
 
 ## Problem
 
@@ -304,11 +304,13 @@ let access_log =
 
 ## Open Questions
 
-- Should the first implementation expose a convenience
-  `Access_log.clf_middleware` helper that creates both middleware and writer, or
-  is the explicit writer plus middleware composition clearer?
-- Should formatter failures call `on_error` once per failed event, or should
-  the writer suppress repeated formatter failures until a successful write
-  occurs?
 - What server-level access log hook should later capture malformed request
   heads, peer addresses, wire byte counts, and response streaming failures?
+
+## Resolved Questions
+
+- The first implementation does not expose an `Access_log.clf_middleware`
+  convenience helper. Users compose `Writer.create`, `Writer.sink`, and
+  `middleware` explicitly.
+- Formatter failures call `on_error` once per failed event. Rate limiting or
+  coalescing is deferred until there is operational evidence that it is needed.

@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft
+Accepted
 
 ## Context
 
@@ -360,9 +360,15 @@ escaping policy, and sets default capacity to `1024`.
 
 ## Open Questions
 
-- Should `Writer.flush` be part of the first public API, or should tests use an
-  internal helper until graceful shutdown requirements are clearer?
-- Should formatter failure reporting be rate-limited or coalesced to avoid
-  repeated `on_error` calls for a broken formatter?
 - What shape should the later server-level access log hook use for peer address,
   request-head errors, wire byte counts, and response streaming failures?
+
+## Resolved Questions
+
+- `Writer.flush` is part of the public API. It supports deterministic tests and
+  graceful shutdown paths.
+- The first implementation does not expose an `Access_log.clf_middleware`
+  convenience helper. Users compose `Writer.create`, `Writer.sink`, and
+  `middleware` explicitly.
+- Formatter failures call `on_error` once per failed event. Rate limiting or
+  coalescing is deferred until there is operational evidence that it is needed.
